@@ -2,10 +2,8 @@ name: Actualizar Visor Sequia SEAS5
 
 on:
   schedule:
-    # Se ejecuta automáticamente el día 12 de cada mes a las 08:00 UTC
-    # (ECMWF publica la nueva corrida mensual entre los días 5 y 10)
     - cron: '0 8 12 * *'
-  workflow_dispatch: # Permite ejecutarlo manualmente con un botón cuando quieras
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,10 +15,10 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python 3.11
+      - name: Configurar Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Instalar dependencias geoespaciales
         run: |
