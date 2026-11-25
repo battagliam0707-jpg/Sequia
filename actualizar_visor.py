@@ -146,10 +146,8 @@ anomalia_pct.rio.to_raster("anomalia_seas5_6m_sa.tif")
 print("Procesando cuencas HydroBASINS...")
 shp_cuencas = "hybas_sa_lev06_v1c.shp"
 if not os.path.exists(shp_cuencas):
-    resp = requests.get("https://data.hydrosheds.org/file/hydrobasins/standard/hybas_sa_lev06_v1c.zip", headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
-    resp.raise_for_status()
-    with open("hybas_sa_lev06_v1c.zip", "wb") as f: f.write(resp.content)
-    with zipfile.ZipFile("hybas_sa_lev06_v1c.zip", "r") as z: z.extractall(".")
+    with zipfile.ZipFile("hybas_sa_lev06_v1c.zip", "r") as z:
+        z.extractall(".")
 
 cuencas = gpd.read_file(shp_cuencas).to_crs("EPSG:4326")
 aguas_arriba_map = {}
