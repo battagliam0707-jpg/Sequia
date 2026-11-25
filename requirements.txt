@@ -1,5 +1,6 @@
 numpy
 pandas
+scipy
 xarray
 rioxarray
 zarr>=3.0.0
