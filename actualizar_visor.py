@@ -41,11 +41,6 @@ centrales_data = [
     {"id": "PENOL_GUATAPE",     "nombre": "Guatapé",           "pais": "Colombia",             "cuenca": "Río Nare",          "capacidad_mw": 560,   "nivel_embalse": 67, "lon": -75.161, "lat": 6.232}
 ]
 
-represas = gpd.GeoDataFrame(
-    centrales_data,
-    geometry=gpd.points_from_xy([c["lon"] for c in centrales_data], [c["lat"] for c in centrales_data]),
-    crs="EPSG:4326"
-)
 # ==========================================
 # 1B. ACTUALIZACIÓN AUTOMÁTICA DE NIVELES DE EMBALSE
 # ==========================================
@@ -153,6 +148,11 @@ def actualizar_niveles_oficiales(centrales):
         print(f"Aviso reservoirs.earth Chile (se mantiene respaldo): {e}")
 
 actualizar_niveles_oficiales(centrales_data)
+represas = gpd.GeoDataFrame(
+    centrales_data,
+    geometry=gpd.points_from_xy([c["lon"] for c in centrales_data], [c["lat"] for c in centrales_data]),
+    crs="EPSG:4326"
+)
 # ==========================================
 # 2. CONEXIÓN A ECMWF SEAS5 (FORECAST + HINDCAST)
 # ==========================================
