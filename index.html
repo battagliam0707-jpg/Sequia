@@ -999,6 +999,8 @@
 
         function onSequiaModeChange(mode) {
             sequiaRiskMode = mode;
+            const sel = document.getElementById('sel-sequia-modo');
+            if (sel && sel.value !== mode) sel.value = mode;
             const lbl = document.getElementById('lbl-tabla-sequia-titulo');
             if (lbl) {
                 lbl.textContent = mode === 'climatico'
@@ -1006,8 +1008,9 @@
                     : 'Ranking Riesgo Operativo (6m)';
             }
             dataRepresas.features.forEach(f => {
-                f.properties.color_sequia = getSequiaColor(getDamSequiaScore(f.properties));
+                f.properties.color_sequia = getSequiaColor(getDamSequiaScore(f.properties), mode);
             });
+            updateSequiaDamLegendScale();
             activateDamColorCriterion('sequia');
             updateDamPointsLayer();
             renderAnalyticalTables();
