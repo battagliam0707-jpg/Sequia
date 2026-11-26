@@ -1,0 +1,132 @@
+{
+  "fecha_emision": "2026-10-01",
+  "actualizado_utc": "26/11/2026 12:32 UTC",
+  "bounds": {
+    "west": -85.0,
+    "south": -60.0,
+    "east": -30.0,
+    "north": 15.0
+  },
+  "represas": {
+    "ITAIPU": {
+      "anomalia_pct": -7.7,
+      "riesgo_climatico": 61.0,
+      "riesgo_operativo": 42.4,
+      "subcuencas_aporte": 115
+    },
+    "BELO_MONTE": {
+      "anomalia_pct": 27.4,
+      "riesgo_climatico": 10.9,
+      "riesgo_operativo": 16.2,
+      "subcuencas_aporte": 61
+    },
+    "GURI": {
+      "anomalia_pct": 23.2,
+      "riesgo_climatico": 16.9,
+      "riesgo_operativo": 16.6,
+      "subcuencas_aporte": 9
+    },
+    "TUCURUI": {
+      "anomalia_pct": 13.3,
+      "riesgo_climatico": 31.0,
+      "riesgo_operativo": 27.5,
+      "subcuencas_aporte": 127
+    },
+    "PAULO_AFONSO": {
+      "anomalia_pct": 28.0,
+      "riesgo_climatico": 10.0,
+      "riesgo_operativo": 21.2,
+      "subcuencas_aporte": 91
+    },
+    "JIRAU": {
+      "anomalia_pct": 15.7,
+      "riesgo_climatico": 27.6,
+      "riesgo_operativo": 28.1,
+      "subcuencas_aporte": 41
+    },
+    "SANTO_ANTONIO": {
+      "anomalia_pct": 15.9,
+      "riesgo_climatico": 27.3,
+      "riesgo_operativo": 27.5,
+      "subcuencas_aporte": 43
+    },
+    "ILHA_SOLTEIRA": {
+      "anomalia_pct": 2.4,
+      "riesgo_climatico": 46.6,
+      "riesgo_operativo": 38.3,
+      "subcuencas_aporte": 59
+    },
+    "YACYRETA": {
+      "anomalia_pct": -14.0,
+      "riesgo_climatico": 70.0,
+      "riesgo_operativo": 48.6,
+      "subcuencas_aporte": 133
+    },
+    "MACAGUA": {
+      "anomalia_pct": 23.2,
+      "riesgo_climatico": 16.9,
+      "riesgo_operativo": 16.2,
+      "subcuencas_aporte": 9
+    },
+    "XINGO": {
+      "anomalia_pct": 28.0,
+      "riesgo_climatico": 10.0,
+      "riesgo_operativo": 20.1,
+      "subcuencas_aporte": 91
+    },
+    "HIDROITUANGO": {
+      "anomalia_pct": 38.8,
+      "riesgo_climatico": 0.0,
+      "riesgo_operativo": 6.3,
+      "subcuencas_aporte": 5
+    },
+    "CARUACHI": {
+      "anomalia_pct": 23.2,
+      "riesgo_climatico": 16.9,
+      "riesgo_operativo": 16.9,
+      "subcuencas_aporte": 9
+    },
+    "SALTO_GRANDE": {
+      "anomalia_pct": -72.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 73.4,
+      "subcuencas_aporte": 29
+    },
+    "PIEDRA_DEL_AGUILA": {
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 77.6,
+      "subcuencas_aporte": 5
+    },
+    "GUAVIO": {
+      "anomalia_pct": 60.7,
+      "riesgo_climatico": 0.0,
+      "riesgo_operativo": 10.8,
+      "subcuencas_aporte": 1
+    },
+    "EL_CHOCON": {
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 92.0,
+      "subcuencas_aporte": 7
+    },
+    "MANTARO": {
+      "anomalia_pct": 80.0,
+      "riesgo_climatico": 0.0,
+      "riesgo_operativo": 16.4,
+      "subcuencas_aporte": 1
+    },
+    "RALCO": {
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 92.7,
+      "subcuencas_aporte": 1
+    },
+    "PENOL_GUATAPE": {
+      "anomalia_pct": 58.6,
+      "riesgo_climatico": 0.0,
+      "riesgo_operativo": 11.5,
+      "subcuencas_aporte": 1
+    }
+  }
+}
