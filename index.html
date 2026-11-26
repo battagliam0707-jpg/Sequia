@@ -985,7 +985,194 @@
                             p.anomalia_pct = Number(p.anomalia_pct ?? 0);
                         }
 
-                        p.riesgo_climatico = Number(computeSequ
+                       p.riesgo_climatico = Number(computeSequiaScoreForMode(p, 'climatico').toFixed(1));
+                        p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
+                        p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
+                    });
+
+                    if (map && mapReady && map.getSource('sequia-seas5-src')) {
+                        map.getSource('sequia-seas5-src').setCoordinates([
+                            [sequiaRasterBounds.west, sequiaRasterBounds.north],
+                            [sequiaRasterBounds.east, sequiaRasterBounds.north],
+                            [sequiaRasterBounds.east, sequiaRasterBounds.south],
+                            [sequiaRasterBounds.west, sequiaRasterBounds.south]
+                        ]);
+                    }
+                }
+            } catch (_) {}
+        
+            try {
+                const respCuencas = await fetch(`cuencas_captacion.geojson?t=${Date.now()}`);
+                if (respCuencas.ok) {
+                    latestCuencasCaptacionGeoJSON = await respCuencas.json();
+                    if (map && mapReady && map.getSource('cuencas-captacion-src')) {
+                        map.getSource('cuencas-captacion-src').setData(latestCuencasCaptacionGeoJSON);
+                    }
+                }
+            } catch (_) {}
+
+            updateSequiaDamLegendScale();
+            updateDamPointsLayer();
+            renderAnalyticalTables();
+        }
+
+        function updateSequiaOpacity(val) {
+            sequiaLayerOpacity = Number(val) / 100;
+            const lbl = document.getElementById('lbl-sequia-opacity');
+            if (lbl) lbl.innerText = `${val}%`;
+            if (map && mapReady && map.getLayer('sequia-seas5-raster-layer')) {
+                map.setPaintProperty('sequia-seas5-raster-layer', 'raster-opacity', sequiaLayerOpacity);
+            }
+        }
+
+        function onSequiaModeChange(mode) {
+            sequiaRiskMode = mode;
+            const sel = document.getElementById('sel-sequia-modo');
+            if (sel && sel.value !== mode) sel.value = mode;
+            const lbl = document.getElementById('lbl-tabla-sequia-titulo');
+            if (lbl) {
+                lbl.textContent = mode === 'climatico'
+                    ? 'Ranking Amenaza Climática (6m)'
+                    : 'Ranking Riesgo Operativo (6m)';
+            }
+            dataRepresas.features.forEach(f => {
+                f.properties.color_sequia = getSequiaColor(getDamSequiaScore(f.properties), mode);
+            });
+            updateSequiaDamLegendScale();
+            activateDamColorCriterion('sequia');
+            updateDamPointsLayer();
+            renderAnalyticalTables();
+        }
+
+        function getDamRainForHorizon(p, horizon = selectedForecastHorizon) {
+            if (horizon === '7d') return Number(p.lluvia_7d_mm) || 0;
+            const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
+            const arr = p.daily_7d || [];
+            return Number(arr[dayIdx] !== undefined ? arr[dayIdx] : p.lluvia_24h_mm) || 0;
+        }
+
+        function getHorizonShortLabel(horizon = selectedForecastHorizon) {
+            if (horizon === '7d') return 'Acum. 7d';
+            const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
+            return dayIdx === 0 ? '24h (D1)' : `D${dayIdx + 1}`;
+        }
+
+        const DAM_OFFICIAL_METADATA = {
+            ITAIPU: { fuente: 'ONS Brasil / Itaipú Binacional', fecha: 'Operativo diario', clim: 38.0 },
+            BELO_MONTE: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 54.0 },
+            GURI: { fuente: 'CORPOELEC (Venezuela)', fecha: 'Boletín Guri', clim: 46.0 },
+            TUCURUI: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 58.0 },
+            PAULO_AFONSO: { fuente: 'ONS Brasil / CHESF', fecha: 'Operativo diario', clim: 74.0 },
+            JIRAU: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 62.0 },
+            SANTO_ANTONIO: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 61.0 },
+            ILHA_SOLTEIRA: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 44.0 },
+            YACYRETA: { fuente: 'EBY (Entidad Binacional Yacyretá)', fecha: 'Parte Hidrológico', clim: 34.0 },
+            MACAGUA: { fuente: 'CORPOELEC / CVG Edelca', fecha: 'Boletín Bajo Caroní', clim: 47.0 },
+            XINGO: { fuente: 'ONS Brasil / CHESF', fecha: 'Operativo diario', clim: 75.0 },
+            HIDROITUANGO: { fuente: 'XM Colombia / EPM', fecha: 'SIN Colombia diario', clim: 41.0 },
+            CARUACHI: { fuente: 'CORPOELEC / CVG Edelca', fecha: 'Boletín Bajo Caroní', clim: 46.0 },
+            SALTO_GRANDE: { fuente: 'CTM Salto Grande', fecha: 'Parte Hidrológico', clim: 36.0 },
+            PIEDRA_DEL_AGUILA: { fuente: 'AIC / CAMMESA (Argentina)', fecha: 'Parte Comahue', clim: 68.0 },
+            GUAVIO: { fuente: 'XM Colombia / Enel', fecha: 'SIN Colombia diario', clim: 45.0 },
+            EL_CHOCON: { fuente: 'AIC / CAMMESA (Argentina)', fecha: 'Parte Comahue', clim: 72.0 },
+            MANTARO: { fuente: 'COES SINAC (Perú)', fecha: 'Operación diaria', clim: 64.0 },
+            RALCO: { fuente: 'Coordinador Eléctrico Nacional (Chile)', fecha: 'Operación diaria', clim: 76.0 },
+            PENOL_GUATAPE: { fuente: 'XM Colombia / EPM', fecha: 'SIN Colombia diario', clim: 42.0 }
+        };
+
+        const dataRepresas = {
+            type: 'FeatureCollection',
+            features: damsRawList.map(d => {
+                const cls = classifyRainByJenksValue(d.lluvia_24h_mm);
+                const lvlInfo = getLevelCategoryInfo(d.volumen_pct);
+                const meta = DAM_OFFICIAL_METADATA[d.id] || { fuente: 'Operador Nacional', fecha: 'Operativo diario', clim: 50.0 };
+                const initAnom = typeof d.anomalia_pct === 'number'
+                    ? d.anomalia_pct
+                    : Number(((50 - meta.clim) * (30 / 50)).toFixed(1));
+                const baseProps = {
+                    ...d,
+                    anomalia_pct: initAnom
+                };
+                const riesgoClim = Number(computeSequiaScoreForMode(baseProps, 'climatico').toFixed(1));
+                const riesgoOper = Number(computeSequiaScoreForMode(baseProps, 'operativo').toFixed(1));
+                return {
+                    type: 'Feature',
+                    properties: {
+                        ...baseProps,
+                        nombre_corto: getShortDamName(d.nombre),
+                        color_nivel: lvlInfo.color,
+                        nivel_tag: lvlInfo.label,
+                        jenks_rank: cls.rank,
+                        color_alerta_lluvia: cls.color,
+                        jenks_tag: cls.tag,
+                        has_rain_alert: cls.rank >= 4,
+                        fuente_nivel: meta.fuente,
+                        fecha_nivel: meta.fecha,
+                        fecha_seas5: 'ECMWF SEAS5 · 6m',
+                        riesgo_climatico: riesgoClim,
+                        riesgo_operativo: riesgoOper,
+                        color_sequia: getSequiaColor(computeSequiaScoreForMode(baseProps, sequiaRiskMode), sequiaRiskMode)
+                    },
+                    geometry: { type: 'Point', coordinates: [d.lon, d.lat] }
+                };
+            })
+        };
+
+        function syncDamColorsWithRenderedPolygons(vectorFeatures, grid, lats, lons, top5Classes) {
+            const minAffectedMm = top5Classes && top5Classes.length > 0 ? top5Classes[0].minMm : 3.5;
+
+            dataRepresas.features.forEach(f => {
+                const p = f.properties;
+                const stationMm = getDamRainForHorizon(p, selectedForecastHorizon);
+                const fieldMm = (grid && lats && lons)
+                    ? bilinearSampleGrid(grid, lats, lons, p.lat, p.lon)
+                    : stationMm;
+
+                let matchedPolyProps = null;
+                for (let rank = 5; rank >= 1; rank--) {
+                    for (let i = 0; i < vectorFeatures.length; i++) {
+                        const vf = vectorFeatures[i];
+                        if (vf.properties.rank !== rank) continue;
+                        const geom = vf.geometry;
+                        if (geom.type === 'Polygon' && pointInGeoPolygonWithHoles(p.lon, p.lat, geom.coordinates)) {
+                            matchedPolyProps = vf.properties;
+                            break;
+                        } else if (geom.type === 'MultiPolygon') {
+                            for (const polyCoords of geom.coordinates) {
+                                if (pointInGeoPolygonWithHoles(p.lon, p.lat, polyCoords)) {
+                                    matchedPolyProps = vf.properties;
+                                    break;
+                                }
+                            }
+                            if (matchedPolyProps) break;
+                        }
+                    }
+                    if (matchedPolyProps) break;
+                }
+
+                if (matchedPolyProps) {
+                    p.jenks_rank = matchedPolyProps.rank;
+                    p.color_alerta_lluvia = matchedPolyProps.color;
+                    p.jenks_tag = matchedPolyProps.tag;
+                } else {
+                    const effectiveMm = Math.min(stationMm, fieldMm);
+                    if (effectiveMm < minAffectedMm - 1e-6) {
+                        p.jenks_rank = 0;
+                        p.color_alerta_lluvia = '#94a3b8';
+                        p.jenks_tag = stationMm < 0.3
+                            ? 'Sin afectación (Seco)'
+                            : `Fuera de zona (< ${minAffectedMm.toFixed(1)} mm)`;
+                    } else {
+                        const cls = classifyRainByJenksValue(effectiveMm);
+                        p.jenks_rank = cls.rank;
+                        p.color_alerta_lluvia = cls.color;
+                        p.jenks_tag = cls.tag;
+                    }
+                }
+
+                p.has_rain_alert = (Number(p.jenks_rank) || 0) >= 4;
+            });
+        }
         // =========================================================================
         // 4. NATURAL EARTH 10M PHYSICAL VECTORS: LAGOS, RÍOS Y LÍMITES FINOS
         // =========================================================================
