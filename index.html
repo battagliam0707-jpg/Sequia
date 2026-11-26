@@ -843,6 +843,103 @@
         let currentFilter = 'all';
         let selectedDamId = null;             // Única represa destacada con halo en el mapa
 
+        let sequiaLayerOpacity = 0.55;
+        let sequiaRiskMode = 'operativo'; // 'operativo' | 'climatico'
+        let sequiaRasterBounds = { west: -85.0, south: -60.0, east: -30.0, north: 15.0 };
+        let latestCuencasCaptacionGeoJSON = { type: 'FeatureCollection', features: [] };
+
+        function getSequiaColor(score) {
+            const s = Number(score) || 0;
+            if (s >= 72) return '#b91c1c';
+            if (s >= 56) return '#f97316';
+            if (s >= 42) return '#eab308';
+            if (s >= 25) return '#10b981';
+            return '#1d4ed8';
+        }
+
+        function getDamSequiaScore(p) {
+            return sequiaRiskMode === 'climatico'
+                ? (Number(p.riesgo_climatico) || 50)
+                : (Number(p.riesgo_operativo) || 50);
+        }
+
+        async function fetchSequiaSeas5Data() {
+            try {
+                const resp = await fetch(`datos_sequia_seas5.json?t=${Date.now()}`);
+                if (resp.ok) {
+                    const payload = await resp.json();
+                    if (payload.bounds) sequiaRasterBounds = payload.bounds;
+
+                    const b1 = document.getElementById('badge-sequia-fecha');
+                    const b2 = document.getElementById('badge-sequia-tab-fecha');
+                    if (b1 && payload.fecha_emision) b1.textContent = payload.fecha_emision;
+                    if (b2 && payload.fecha_emision) b2.textContent = payload.fecha_emision;
+
+                    dataRepresas.features.forEach(f => {
+                        const p = f.properties;
+                        const info = payload.represas?.[p.id];
+                        if (info) {
+                            p.anomalia_pct = info.anomalia_pct;
+                            p.riesgo_climatico = info.riesgo_climatico;
+                            p.riesgo_operativo = info.riesgo_operativo;
+                            p.subcuencas_aporte = info.subcuencas_aporte;
+                        } else {
+                            p.anomalia_pct = 0.0;
+                            p.riesgo_climatico = 50.0;
+                            p.riesgo_operativo = Number((0.65 * 50 + 0.35 * (100 - p.volumen_pct)).toFixed(1));
+                        }
+                        p.color_sequia = getSequiaColor(getDamSequiaScore(p));
+                    });
+
+                    if (map && mapReady && map.getSource('sequia-seas5-src')) {
+                        map.getSource('sequia-seas5-src').setCoordinates([
+                            [sequiaRasterBounds.west, sequiaRasterBounds.north],
+                            [sequiaRasterBounds.east, sequiaRasterBounds.north],
+                            [sequiaRasterBounds.east, sequiaRasterBounds.south],
+                            [sequiaRasterBounds.west, sequiaRasterBounds.south]
+                        ]);
+                    }
+                }
+            } catch (_) {}
+
+            try {
+                const respCuencas = await fetch(`cuencas_captacion.geojson?t=${Date.now()}`);
+                if (respCuencas.ok) {
+                    latestCuencasCaptacionGeoJSON = await respCuencas.json();
+                    if (map && mapReady && map.getSource('cuencas-captacion-src')) {
+                        map.getSource('cuencas-captacion-src').setData(latestCuencasCaptacionGeoJSON);
+                    }
+                }
+            } catch (_) {}
+
+            updateDamPointsLayer();
+            renderAnalyticalTables();
+        }
+
+        function updateSequiaOpacity(val) {
+            sequiaLayerOpacity = Number(val) / 100;
+            const lbl = document.getElementById('lbl-sequia-opacity');
+            if (lbl) lbl.innerText = `${val}%`;
+            if (map && mapReady && map.getLayer('sequia-seas5-raster-layer')) {
+                map.setPaintProperty('sequia-seas5-raster-layer', 'raster-opacity', sequiaLayerOpacity);
+            }
+        }
+
+        function onSequiaModeChange(mode) {
+            sequiaRiskMode = mode;
+            const lbl = document.getElementById('lbl-tabla-sequia-titulo');
+            if (lbl) {
+                lbl.textContent = mode === 'climatico'
+                    ? 'Ranking Amenaza Climática (6m)'
+                    : 'Ranking Riesgo Operativo (6m)';
+            }
+            dataRepresas.features.forEach(f => {
+                f.properties.color_sequia = getSequiaColor(getDamSequiaScore(f.properties));
+            });
+            activateDamColorCriterion('sequia');
+            updateDamPointsLayer();
+            renderAnalyticalTables();
+        }
         function getDamRainForHorizon(p, horizon = selectedForecastHorizon) {
             if (horizon === '7d') return Number(p.lluvia_7d_mm) || 0;
             const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
