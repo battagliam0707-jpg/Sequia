@@ -2050,10 +2050,15 @@
         }
 
         function setSelectedDam(damId) {
-            selectedDamId = damId || null;
-            updateDamPointsLayer();
-            renderAnalyticalTables();
-        }
+         selectedDamId = damId || null;
+         if (map && mapReady && map.getLayer('cuenca-activa-fill')) {
+             const filtro = ['==', ['get', 'id'], selectedDamId || ''];
+             map.setFilter('cuenca-activa-fill', filtro);
+             map.setFilter('cuenca-activa-line', filtro);
+         }
+         updateDamPointsLayer();
+         renderAnalyticalTables();
+     }
 
         // =========================================================================
         // 7. POPUP DETALLADO DE CENTRAL Y TABLAS SINCRONIZADAS CON CAPAS DEL MAPA
