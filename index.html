@@ -2154,29 +2154,27 @@
         }
 
         function switchRightTab(tabName) {
-            ['balance', 'lluvias'].forEach(t => {
-                const view = document.getElementById(`tab-view-${t}`);
-                const btn = document.getElementById(`tab-btn-${t}`);
-                if (!view || !btn) return;
-                if (t === tabName) {
-                    view.classList.remove('hidden');
-                    view.classList.add('flex');
-                    btn.className = t === 'balance'
-                        ? 'py-1.5 px-2 rounded-xl font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition'
-                        : 'py-1.5 px-2 rounded-xl font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40 transition';
-                } else {
-                    view.classList.add('hidden');
-                    view.classList.remove('flex');
-                    btn.className = 'py-1.5 px-2 rounded-xl font-medium text-slate-400 hover:text-white transition';
-                }
-            });
+         ['balance', 'lluvias', 'sequia'].forEach(t => {
+             const view = document.getElementById(`tab-view-${t}`);
+             const btn = document.getElementById(`tab-btn-${t}`);
+             if (!view || !btn) return;
+             if (t === tabName) {
+                 view.classList.remove('hidden');
+                 view.classList.add('flex');
+                 if (t === 'balance') btn.className = 'py-1.5 px-1.5 rounded-xl font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition';
+                 else if (t === 'lluvias') btn.className = 'py-1.5 px-1.5 rounded-xl font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40 transition';
+                 else btn.className = 'py-1.5 px-1.5 rounded-xl font-bold bg-rose-500/20 text-rose-300 border border-rose-400/40 transition';
+             } else {
+                 view.classList.add('hidden');
+                 view.classList.remove('flex');
+                 btn.className = 'py-1.5 px-1.5 rounded-xl font-medium text-slate-400 hover:text-white transition';
+             }
+         });
 
-            if (tabName === 'balance') {
-                activateDamColorCriterion('niveles');
-            } else if (tabName === 'lluvias') {
-                activateDamColorCriterion('lluvias');
-            }
-        }
+         if (tabName === 'balance') activateDamColorCriterion('niveles');
+         else if (tabName === 'lluvias') activateDamColorCriterion('lluvias');
+         else if (tabName === 'sequia') activateDamColorCriterion('sequia');
+     }
 
         function setDamFilter(filterKey) {
             currentFilter = filterKey;
