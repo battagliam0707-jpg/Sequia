@@ -3234,6 +3234,57 @@
                 }
             });
 
+            // 3c. Capa Raster de Anomalía de Sequía SEAS5 (6 Meses) y Cuencas Aguas Arriba
+            map.addSource('sequia-seas5-src', {
+                type: 'image',
+                url: `sequia_anomalia_6m.png?t=${Date.now()}`,
+                coordinates: [
+                    [sequiaRasterBounds.west, sequiaRasterBounds.north],
+                    [sequiaRasterBounds.east, sequiaRasterBounds.north],
+                    [sequiaRasterBounds.east, sequiaRasterBounds.south],
+                    [sequiaRasterBounds.west, sequiaRasterBounds.south]
+                ]
+            });
+            map.addLayer({
+                id: 'sequia-seas5-raster-layer',
+                type: 'raster',
+                source: 'sequia-seas5-src',
+                layout: { visibility: 'none' },
+                paint: { 'raster-opacity': sequiaLayerOpacity, 'raster-fade-duration': 0 }
+            });
+
+            map.addSource('cuencas-captacion-src', {
+                type: 'geojson',
+                data: latestCuencasCaptacionGeoJSON
+            });
+            map.addLayer({
+                id: 'cuencas-todas-fill',
+                type: 'fill',
+                source: 'cuencas-captacion-src',
+                layout: { visibility: 'none' },
+                paint: { 'fill-color': '#38bdf8', 'fill-opacity': 0.12 }
+            });
+            map.addLayer({
+                id: 'cuencas-todas-line',
+                type: 'line',
+                source: 'cuencas-captacion-src',
+                layout: { visibility: 'none' },
+                paint: { 'line-color': '#38bdf8', 'line-width': 1.2, 'line-opacity': 0.7 }
+            });
+            map.addLayer({
+                id: 'cuenca-activa-fill',
+                type: 'fill',
+                source: 'cuencas-captacion-src',
+                filter: ['==', ['get', 'id'], ''],
+                paint: { 'fill-color': '#facc15', 'fill-opacity': 0.22 }
+            });
+            map.addLayer({
+                id: 'cuenca-activa-line',
+                type: 'line',
+                source: 'cuencas-captacion-src',
+                filter: ['==', ['get', 'id'], ''],
+                paint: { 'line-color': '#facc15', 'line-width': 2.2, 'line-opacity': 0.95 }
+            });
             // 4. Puntos Circulares de las 20 Centrales (2x en Globo 3D) + Halo Exclusivo para la Represa Seleccionada
             const initialScale = isGlobeProjection ? 2.0 : 1.0;
 
