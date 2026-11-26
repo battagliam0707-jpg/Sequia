@@ -45,7 +45,10 @@ centrales_data = [
 # 1B. ACTUALIZACIÓN AUTOMÁTICA DE NIVELES DE EMBALSE
 # ==========================================
 def actualizar_niveles_oficiales(centrales):
-    anio_actual = datetime.now(timezone.utc).year
+    ahora_utc = datetime.now(timezone.utc)
+    anio_actual = ahora_utc.year
+    fecha_hoy_str = ahora_utc.strftime("%d/%m/%Y")
+
     niveles_previos = {}
     if os.path.exists("datos_sequia_seas5.json"):
         try:
@@ -53,15 +56,20 @@ def actualizar_niveles_oficiales(centrales):
                 prev_data = json.load(f)
                 for k, v in prev_data.get("represas", {}).items():
                     if "nivel_embalse" in v:
-                        niveles_previos[k] = (v["nivel_embalse"], v.get("fuente_nivel", "Histórico previo"))
+                        niveles_previos[k] = (
+                            v["nivel_embalse"],
+                            v.get("fuente_nivel", "Histórico previo"),
+                            v.get("fecha_nivel", prev_data.get("actualizado_utc", "Manual / Base"))
+                        )
         except Exception:
             pass
 
     for c in centrales:
         if c["id"] in niveles_previos:
-            c["nivel_embalse"], c["fuente_nivel"] = niveles_previos[c["id"]]
+            c["nivel_embalse"], c["fuente_nivel"], c["fecha_nivel"] = niveles_previos[c["id"]]
         else:
             c["fuente_nivel"] = "Referencia base"
+            c["fecha_nivel"] = "Manual / Base"
 
     # -------------------------------------------------
     # A. BRASIL -> ONS Dados Abertos (CSV oficial diario)
@@ -101,8 +109,9 @@ def actualizar_niveles_oficiales(centrales):
                             val = float(str(ultimo[col_val]).replace(",", "."))
                             if 0 <= val <= 105:
                                 c["nivel_embalse"] = round(min(val, 100.0), 1)
-                                fecha_txt = str(ultimo[col_fec])[:10] if col_fec else str(anio_actual)
-                                c["fuente_nivel"] = f"ONS Oficial ({fecha_txt})"
+                                fecha_txt = str(ultimo[col_fec])[:10] if col_fec else fecha_hoy_str
+                                c["fuente_nivel"] = "ONS Brasil (Oficial)"
+                                c["fecha_nivel"] = fecha_txt
                                 break
     except Exception as e:
         print(f"Aviso ONS Brasil (se mantiene respaldo): {e}")
@@ -127,6 +136,7 @@ def actualizar_niveles_oficiales(centrales):
                             val = float(reg_co[reg_key]["avgFill"])
                             c["nivel_embalse"] = round(float(np.clip(val, 0, 100)), 1)
                             c["fuente_nivel"] = f"reservoirs.earth ({reg_key})"
+                            c["fecha_nivel"] = fecha_hoy_str
                             break
     except Exception as e:
         print(f"Aviso reservoirs.earth Colombia (se mantiene respaldo): {e}")
@@ -135,7 +145,6 @@ def actualizar_niveles_oficiales(centrales):
         r_cl = requests.get("https://reservoirs.earth/map-layers/regions/cl.json", timeout=20)
         if r_cl.ok:
             reg_cl = r_cl.json().get("regions", {})
-            # Ralco está en la Región del Biobío
             for reg_name, reg_info in reg_cl.items():
                 if "BIO" in reg_name.upper() and "avgFill" in reg_info:
                     val = float(reg_info["avgFill"])
@@ -143,9 +152,12 @@ def actualizar_niveles_oficiales(centrales):
                         if c["id"] == "RALCO":
                             c["nivel_embalse"] = round(float(np.clip(val, 0, 100)), 1)
                             c["fuente_nivel"] = f"reservoirs.earth ({reg_name})"
+                            c["fecha_nivel"] = fecha_hoy_str
                     break
     except Exception as e:
         print(f"Aviso reservoirs.earth Chile (se mantiene respaldo): {e}")
+
+actualizar_niveles_oficiales(centrales_data)
 
 actualizar_niveles_oficiales(centrales_data)
 represas = gpd.GeoDataFrame(
