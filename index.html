@@ -863,45 +863,30 @@
             `).join('');
         }
 
-        // =========================================================================
-       // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
-        // =========================================================================
-        // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
-        // =========================================================================
-        let map = null;
-        let mapReady = false;
-        let fallbackController = null;
-        let isGlobeProjection = true;
-        let currentBasemap = 'satelital';     // 'satelital' | 'hibrido'
-        let selectedForecastHorizon = 'd0';   // 'd0' (24h/D1) | 'd1'..'d6' (D2..D7) | '7d'
-        let gfsLayerOpacity = 0.20;           // Inicia en 20%
-        let currentFilter = 'all';
-        let selectedDamId = null;             // Única represa destacada con halo en el mapa
-
-        let sequiaLayerOpacity = 0.55;
-        let sequiaRiskMode = 'operativo'; // 'operativo' | 'climatico'
-        let sequiaRasterBounds = { west: -85.0, south: -60.0, east: -30.0, north: 15.0 };
-        let latestCuencasCaptacionGeoJSON = { type: 'FeatureCollection', features: [] };
-
-        function computeSequiaScoreForMode(p, mode = sequiaRiskMode) {
-            const anom = Number(p.anomalia_pct ?? 0); // Negativo = sequía, Positivo = húmedo
+ function computeSequiaScoreForMode(p, mode = sequiaRiskMode) {
+            const anom = Number(p.anomalia_pct ?? 0);
             const vol = Number(p.volumen_pct ?? 50);
 
             if (mode === 'climatico') {
-                // Escala 0..100 alineada con los colores del mapa raster según anomalía %
-                return Math.max(0, Math.min(100, 50 - (anom * (50 / 30))));
+                // Mapeo directo al mismo índice de banda que el raster SEAS5 (0..5, donde 5 = Rojo < -25% y 0 = Azul > +15%)
+                if (anom < -25) return 95;       // Rojo: Sequía severa (< -25%)
+                if (anom < -12) return 80;       // Naranja: Déficit moderado (-25% a -12%)
+                if (anom < -4)  return 65;       // Amarillo: Levemente seco (-12% a -4%)
+                if (anom <= 4)  return 45;       // Gris claro: Normal (-4% a +4%)
+                if (anom <= 15) return 25;       // Verde: Ligeramente húmedo (+4% a +15%)
+                return 10;                       // Azul: Superávit (> +15%)
             }
 
             // RIESGO OPERATIVO:
-            // Solo alcanza nivel Rojo (>= 80) si embalse bajo (< 50%) Y sequía naranja/roja (anom <= -6%)
-            const isDryZone = anom <= -6;
-            const isMildDry = anom <= -1 && anom > -6;
+            // Solo Rojo (>= 80) cuando embalse bajo (< 50%) Y cae en zona naranja o roja de sequía (anom < -12%)
+            const isDryZone = anom < -12;        // Zona naranja o roja en el mapa
+            const isMildDry = anom < -4 && anom >= -12; // Zona amarilla en el mapa
             const isLowDam = vol < 50;
             const isMedDam = vol >= 50 && vol < 70;
 
             if (isLowDam && isDryZone) return 90;                             // Rojo: Embalse bajo + sequía naranja/roja
-            if ((isLowDam && isMildDry) || (isMedDam && isDryZone)) return 70; // Naranja: Riesgo combinado
-            if (isDryZone || isLowDam) return 52;                             // Amarillo: Moderado / amortiguado
+            if ((isLowDam && isMildDry) || (isMedDam && isDryZone)) return 70; // Naranja: Alto
+            if (isDryZone || isLowDam) return 52;                             // Amarillo: Moderado (amortiguado por embalse)
             return 25;                                                        // Verde: Controlado
         }
 
@@ -917,11 +902,12 @@
                 { min: -Infinity, color: '#059669', label: 'Controlado (Sin alerta)' }
             ],
             climatico: [
-                { min: 75, color: '#b91c1c', label: 'Sequía Severa (≤ -15%)' },
-                { min: 60, color: '#f97316', label: 'Déficit Moderado (-15% a -6%)' },
-                { min: 51.7, color: '#facc15', label: 'Levemente Seco (-6% a -1%)' },
-                { min: 41.7, color: '#10b981', label: 'Normal / Húmedo (-1% a +5%)' },
-                { min: -Infinity, color: '#1d4ed8', label: 'Superávit (> +5%)' }
+                { min: 90, color: '#b91c1c', label: 'Sequía severa (< -25%)' },
+                { min: 75, color: '#f97316', label: 'Déficit moderado (-25..-12%)' },
+                { min: 60, color: '#facc15', label: 'Levemente seco (-12..-4%)' },
+                { min: 40, color: '#e2e8f0', label: 'Normal (-4% a +4%)' },
+                { min: 20, color: '#10b981', label: 'Húmedo (+4% a +15%)' },
+                { min: -Infinity, color: '#1d4ed8', label: 'Superávit (> +15%)' }
             ]
         };
 
