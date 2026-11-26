@@ -46,7 +46,113 @@ represas = gpd.GeoDataFrame(
     geometry=gpd.points_from_xy([c["lon"] for c in centrales_data], [c["lat"] for c in centrales_data]),
     crs="EPSG:4326"
 )
+# ==========================================
+# 1B. ACTUALIZACIÓN AUTOMÁTICA DE NIVELES DE EMBALSE
+# ==========================================
+def actualizar_niveles_oficiales(centrales):
+    anio_actual = datetime.now(timezone.utc).year
+    niveles_previos = {}
+    if os.path.exists("datos_sequia_seas5.json"):
+        try:
+            with open("datos_sequia_seas5.json", "r", encoding="utf-8") as f:
+                prev_data = json.load(f)
+                for k, v in prev_data.get("represas", {}).items():
+                    if "nivel_embalse" in v:
+                        niveles_previos[k] = (v["nivel_embalse"], v.get("fuente_nivel", "Histórico previo"))
+        except Exception:
+            pass
 
+    for c in centrales:
+        if c["id"] in niveles_previos:
+            c["nivel_embalse"], c["fuente_nivel"] = niveles_previos[c["id"]]
+        else:
+            c["fuente_nivel"] = "Referencia base"
+
+    # -------------------------------------------------
+    # A. BRASIL -> ONS Dados Abertos (CSV oficial diario)
+    # -------------------------------------------------
+    try:
+        print("Consultando niveles oficiales ONS (Brasil)...")
+        url_ons = f"https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/ear_reservatorio_di/EAR_DIARIO_RESERVATORIO_{anio_actual}.csv"
+        df_ons = pd.read_csv(url_ons, sep=";")
+        df_ons.columns = [col.strip().lower() for col in df_ons.columns]
+
+        col_nom = next((c for c in df_ons.columns if "nom_reservatorio" in c or "reservatorio" in c), None)
+        col_val = next((c for c in df_ons.columns if "ear_verif_reservatorio_percentual" in c or "percentual" in c), None)
+        col_fec = next((c for c in df_ons.columns if "ear_data" in c or "data" in c), None)
+
+        if col_nom and col_val:
+            df_ons = df_ons.dropna(subset=[col_val])
+            if col_fec:
+                df_ons = df_ons.sort_values(col_fec)
+
+            mapa_ons = {
+                "ITAIPU": ["ITAIPU"],
+                "BELO_MONTE": ["BELO MONTE", "PIMENTAL"],
+                "TUCURUI": ["TUCURUI"],
+                "PAULO_AFONSO": ["PAULO AFONSO", "ITAPARICA", "SOBRADINHO"],
+                "JIRAU": ["JIRAU"],
+                "SANTO_ANTONIO": ["SANTO ANTONIO"],
+                "ILHA_SOLTEIRA": ["ILHA SOLTEIRA"],
+                "XINGO": ["XINGO"]
+            }
+
+            for c in centrales:
+                if c["id"] in mapa_ons:
+                    for patron in mapa_ons[c["id"]]:
+                        sub = df_ons[df_ons[col_nom].str.upper().str.contains(patron, na=False)]
+                        if not sub.empty:
+                            ultimo = sub.iloc[-1]
+                            val = float(str(ultimo[col_val]).replace(",", "."))
+                            if 0 <= val <= 105:
+                                c["nivel_embalse"] = round(min(val, 100.0), 1)
+                                fecha_txt = str(ultimo[col_fec])[:10] if col_fec else str(anio_actual)
+                                c["fuente_nivel"] = f"ONS Oficial ({fecha_txt})"
+                                break
+    except Exception as e:
+        print(f"Aviso ONS Brasil (se mantiene respaldo): {e}")
+
+    # -------------------------------------------------
+    # B. COLOMBIA Y CHILE -> reservoirs.earth
+    # -------------------------------------------------
+    try:
+        print("Consultando niveles satelitales reservoirs.earth (Colombia y Chile)...")
+        r_co = requests.get("https://reservoirs.earth/map-layers/regions/co.json", timeout=20)
+        if r_co.ok:
+            reg_co = r_co.json().get("regions", {})
+            mapa_co = {
+                "HIDROITUANGO": ["Antioquia"],
+                "PENOL_GUATAPE": ["Antioquia"],
+                "GUAVIO": ["Cundinamarca"]
+            }
+            for c in centrales:
+                if c["id"] in mapa_co:
+                    for reg_key in mapa_co[c["id"]]:
+                        if reg_key in reg_co and "avgFill" in reg_co[reg_key]:
+                            val = float(reg_co[reg_key]["avgFill"])
+                            c["nivel_embalse"] = round(float(np.clip(val, 0, 100)), 1)
+                            c["fuente_nivel"] = f"reservoirs.earth ({reg_key})"
+                            break
+    except Exception as e:
+        print(f"Aviso reservoirs.earth Colombia (se mantiene respaldo): {e}")
+
+    try:
+        r_cl = requests.get("https://reservoirs.earth/map-layers/regions/cl.json", timeout=20)
+        if r_cl.ok:
+            reg_cl = r_cl.json().get("regions", {})
+            # Ralco está en la Región del Biobío
+            for reg_name, reg_info in reg_cl.items():
+                if "BIO" in reg_name.upper() and "avgFill" in reg_info:
+                    val = float(reg_info["avgFill"])
+                    for c in centrales:
+                        if c["id"] == "RALCO":
+                            c["nivel_embalse"] = round(float(np.clip(val, 0, 100)), 1)
+                            c["fuente_nivel"] = f"reservoirs.earth ({reg_name})"
+                    break
+    except Exception as e:
+        print(f"Aviso reservoirs.earth Chile (se mantiene respaldo): {e}")
+
+actualizar_niveles_oficiales(centrales_data)
 # ==========================================
 # 2. CONEXIÓN A ECMWF SEAS5 (FORECAST + HINDCAST)
 # ==========================================
