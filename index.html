@@ -863,6 +863,21 @@
             `).join('');
         }
 
+        let map = null;
+        let mapReady = false;
+        let fallbackController = null;
+        let isGlobeProjection = true;
+        let currentBasemap = 'satelital';
+        let selectedForecastHorizon = 'd0';
+        let gfsLayerOpacity = 0.20;
+        let currentFilter = 'all';
+        let selectedDamId = null;
+
+        let sequiaLayerOpacity = 0.55;
+        let sequiaRiskMode = 'operativo';
+        let sequiaRasterBounds = { west: -85.0, south: -60.0, east: -30.0, north: 15.0 };
+        let latestCuencasCaptacionGeoJSON = { type: 'FeatureCollection', features: [] };
+        
  function computeSequiaScoreForMode(p, mode = sequiaRiskMode) {
             const anom = Number(p.anomalia_pct ?? 0);
             const vol = Number(p.volumen_pct ?? 50);
