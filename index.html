@@ -214,8 +214,8 @@
             id="side-panel-left"
             class="pointer-events-auto shrink-0 max-h-[58vh] overflow-y-auto bg-slate-900/92 border border-slate-700/80 backdrop-blur-xl rounded-2xl p-3 shadow-2xl space-y-2 transition-all"
         >
-            <!-- SECCIÓN 1: Capa Represas (Activada por default en gris neutro, escala 2x en 3D) -->
-            <div class="space-y-1 border-b border-slate-800 pb-2">
+            <!-- SECCIÓN 1: Capa Represas + Cuencas Hidrográficas Aguas Arriba -->
+            <div class="space-y-1.5 border-b border-slate-800 pb-2">
                 <div class="flex items-center justify-between gap-1">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input
@@ -231,6 +231,17 @@
                         20 · 3D 2x
                     </span>
                 </div>
+
+                <!-- Ver polígonos de cuencas hidrográficas aguas arriba -->
+                <label class="flex items-center gap-2 cursor-pointer text-[10.5px] text-slate-300 pl-0.5 pt-0.5">
+                    <input
+                        id="chk-layer-cuencas-aporte"
+                        type="checkbox"
+                        onchange="toggleThematicLayers()"
+                        class="w-3.5 h-3.5 rounded accent-cyan-400 cursor-pointer"
+                    />
+                    <span>Ver todas las cuencas aguas arriba</span>
+                </label>
             </div>
 
             <!-- SECCIÓN 2: Simbología Nivel de Embalse (%) - Categorías Clásicas (>90% Exceso, 60-90% Óptimo, 25-59% Medio, <25% Sequía) -->
