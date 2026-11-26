@@ -2228,6 +2228,41 @@
 
             const tabBalBtn = document.getElementById('tab-btn-balance');
             const tabRainBtn = document.getElementById('tab-btn-lluvias');
+            const tabSeqBtn = document.getElementById('tab-btn-sequia');
+         if (tabSeqBtn) {
+             tabSeqBtn.textContent = isZoomedIn
+                 ? `🌵 Sequía (${visibleProps.length}/${totalCount})`
+                 : `🌵 Sequía (${totalCount})`;
+         }
+
+         const sequiaListEl = document.getElementById('lista-ranking-sequia');
+         if (sequiaListEl) {
+             const sortedSeq = [...visibleProps].sort((a, b) => getDamSequiaScore(b) - getDamSequiaScore(a));
+             if (sortedSeq.length === 0) {
+                 sequiaListEl.innerHTML = `<div class="px-3 py-6 text-center text-[11px] text-slate-400">Sin centrales en este encuadre de zoom.</div>`;
+             } else {
+                 sequiaListEl.innerHTML = sortedSeq.map(d => {
+                     const score = getDamSequiaScore(d);
+                     const anom = Number(d.anomalia_pct ?? 0);
+                     const col = getSequiaColor(score);
+                     const isSelectedRow = d.id === selectedDamId;
+                     const rowClass = isSelectedRow
+                         ? 'w-full text-left px-3 py-2 bg-cyan-950/60 ring-1 ring-inset ring-cyan-400/60 transition flex items-center justify-between gap-2'
+                         : 'w-full text-left px-3 py-2 hover:bg-slate-800/80 transition flex items-center justify-between gap-2';
+                     return `
+                         <button onclick="openDamInspection('${d.id}', true, 'sequia')" class="${rowClass}">
+                             <div class="min-w-0">
+                                 <div class="font-semibold text-slate-100 truncate">${d.nombre_corto}</div>
+                                 <div class="text-[10px] text-slate-400 truncate">${d.pais} · Anomalía 6m: <span class="font-mono text-slate-200">${anom > 0 ? '+' : ''}${anom.toFixed(1)}%</span></div>
+                             </div>
+                             <span class="font-mono font-bold px-2 py-0.5 rounded-lg text-[10px] shrink-0" style="background:rgba(15,23,42,0.95); color:${col}; border:1px solid ${col}44">
+                                 ${score.toFixed(0)}%
+                             </span>
+                         </button>
+                     `;
+                 }).join('');
+             }
+         }
             const zoomScopeBadge = document.getElementById('badge-zoom-scope');
             const fltAllBtn = document.getElementById('flt-all');
 
