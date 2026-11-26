@@ -2375,7 +2375,7 @@
                  sequiaListEl.innerHTML = sortedSeq.map(d => {
                      const score = getDamSequiaScore(d);
                      const anom = Number(d.anomalia_pct ?? 0);
-                     const col = getSequiaColor(score);
+                     const col = getSequiaColor(score, sequiaRiskMode);
                      const isSelectedRow = d.id === selectedDamId;
                      const rowClass = isSelectedRow
                          ? 'w-full text-left px-3 py-2 bg-cyan-950/60 ring-1 ring-inset ring-cyan-400/60 transition flex items-center justify-between gap-2'
