@@ -1943,20 +1943,23 @@
         // 6. PUNTOS CIRCULARES DE CENTRALES + HALO EXCLUSIVO + ESCALA 2X EN GLOBO 3D
         // =========================================================================
         function getActiveDamDisplayMode() {
-            const showRepresas = Boolean(document.getElementById('chk-layer-represas-gris')?.checked);
-            const showNiveles = Boolean(document.getElementById('chk-layer-niveles')?.checked);
-            const showLluviasEmb = Boolean(document.getElementById('chk-layer-lluvias-embalses')?.checked);
-            if (showRepresas) return 'represas';
-            if (showNiveles) return 'niveles';
-            if (showLluviasEmb) return 'lluvias';
-            return 'none';
-        }
+         const showRepresas = Boolean(document.getElementById('chk-layer-represas-gris')?.checked);
+         const showNiveles = Boolean(document.getElementById('chk-layer-niveles')?.checked);
+         const showLluviasEmb = Boolean(document.getElementById('chk-layer-lluvias-embalses')?.checked);
+         const showSequiaEmb = Boolean(document.getElementById('chk-layer-sequia-presas')?.checked);
+         if (showRepresas) return 'represas';
+         if (showNiveles) return 'niveles';
+         if (showLluviasEmb) return 'lluvias';
+         if (showSequiaEmb) return 'sequia';
+         return 'none';
+     }
 
-        function resolveDamMarkerColor(p, mode = getActiveDamDisplayMode()) {
-            if (mode === 'lluvias') return p.color_alerta_lluvia;
-            if (mode === 'niveles') return p.color_nivel;
-            return DAM_NEUTRAL_GRAY_COLOR;
-        }
+     function resolveDamMarkerColor(p, mode = getActiveDamDisplayMode()) {
+         if (mode === 'sequia') return p.color_sequia || getSequiaColor(getDamSequiaScore(p));
+         if (mode === 'lluvias') return p.color_alerta_lluvia;
+         if (mode === 'niveles') return p.color_nivel;
+         return DAM_NEUTRAL_GRAY_COLOR;
+     }
 
         function buildDamPointsGeoJSON() {
             const mode = getActiveDamDisplayMode();
