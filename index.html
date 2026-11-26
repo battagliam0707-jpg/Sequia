@@ -1988,132 +1988,17 @@
         // =========================================================================
         // 6. PUNTOS CIRCULARES DE CENTRALES + HALO EXCLUSIVO + ESCALA 2X EN GLOBO 3D
         // =========================================================================
-        function getActiveDamDisplayMode() {
-         const showRepresas = Boolean(document.getElementById('chk-layer-represas-gris')?.checked);
-         const showNiveles = Boolean(document.getElementById('chk-layer-niveles')?.checked);
-         const showLluviasEmb = Boolean(document.getElementById('chk-layer-lluvias-embalses')?.checked);
-         const showSequiaEmb = Boolean(document.getElementById('chk-layer-sequia-presas')?.checked);
-         if (showRepresas) return 'represas';
-         if (showNiveles) return 'niveles';
-         if (showLluviasEmb) return 'lluvias';
-         if (showSequiaEmb) return 'sequia';
-         return 'none';
-     }
-
-     function resolveDamMarkerColor(p, mode = getActiveDamDisplayMode()) {
-         if (mode === 'sequia') return p.color_sequia || getSequiaColor(getDamSequiaScore(p));
-         if (mode === 'lluvias') return p.color_alerta_lluvia;
-         if (mode === 'niveles') return p.color_nivel;
-         return DAM_NEUTRAL_GRAY_COLOR;
-     }
-
-        function buildDamPointsGeoJSON() {
-            const mode = getActiveDamDisplayMode();
-            return {
-                type: 'FeatureCollection',
-                features: dataRepresas.features.map(f => {
-                    const p = f.properties;
-                    return {
-                        type: 'Feature',
-                        properties: {
-                            id: p.id,
-                            nombre: p.nombre,
-                            nombre_corto: p.nombre_corto,
-                            capacidad_mw: p.capacidad_mw,
-                            volumen_pct: p.volumen_pct,
-                            lluvia_24h_mm: p.lluvia_24h_mm,
-                            color: resolveDamMarkerColor(p, mode),
-                            is_selected: p.id === selectedDamId
-                        },
-                        geometry: f.geometry
-                    };
-                })
-            };
-        }
-
-        function applyMapLibreDamScaleForProjection() {
-            if (!map || !mapReady) return;
-            const scale = isGlobeProjection ? 2.0 : 1.0;
-
-            if (map.getLayer('dams-points-circle')) {
-                map.setPaintProperty('dams-points-circle', 'circle-radius', [
-                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
-                    500, 5.5 * scale,
-                    5000, 7.2 * scale,
-                    14000, 9.0 * scale
-                ]);
-                map.setPaintProperty('dams-points-circle', 'circle-stroke-width', isGlobeProjection ? 2.4 : 1.8);
-            }
-
-            if (map.getLayer('dams-selected-halo')) {
-                map.setPaintProperty('dams-selected-halo', 'circle-radius', [
-                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
-                    500, 18.0 * scale,
-                    5000, 21.0 * scale,
-                    14000, 24.0 * scale
-                ]);
-            }
-
-            if (map.getLayer('dams-selected-ring')) {
-                map.setPaintProperty('dams-selected-ring', 'circle-radius', [
-                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
-                    500, 11.5 * scale,
-                    5000, 13.5 * scale,
-                    14000, 15.5 * scale
-                ]);
-                map.setPaintProperty('dams-selected-ring', 'circle-stroke-width', isGlobeProjection ? 3.2 : 2.5);
-            }
-
-            if (map.getLayer('dams-labels-3d')) {
-                map.setLayoutProperty('dams-labels-3d', 'text-offset', isGlobeProjection ? [0, -1.95] : [0, -1.25]);
-            }
-        }
-
-        function updateDamPointsLayer() {
-            if (map && mapReady) {
-                if (map.getSource('dams-points-src')) {
-                    map.getSource('dams-points-src').setData(buildDamPointsGeoJSON());
-                }
-                if (map.getSource('dams-labels-3d-src')) {
-                    map.getSource('dams-labels-3d-src').setData({
-                        type: 'FeatureCollection',
-                        features: dataRepresas.features.map(f => ({
-                            type: 'Feature',
-                            properties: {
-                                id: f.properties.id,
-                                label: f.properties.nombre_corto,
-                                is_selected: f.properties.id === selectedDamId
-                            },
-                            geometry: f.geometry
-                        }))
-                    });
-                }
-                applyMapLibreDamScaleForProjection();
-            }
-            if (fallbackController) {
-                fallbackController.refreshAll();
-            }
-        }
-
-        function setSelectedDam(damId) {
-         selectedDamId = damId || null;
-         if (map && mapReady && map.getLayer('cuenca-activa-fill')) {
-             const filtro = ['==', ['get', 'id'], selectedDamId || ''];
-             map.setFilter('cuenca-activa-fill', filtro);
-             map.setFilter('cuenca-activa-line', filtro);
-         }
-         updateDamPointsLayer();
-         renderAnalyticalTables();
-     }
-
-        // =========================================================================
-        // 7. POPUP DETALLADO DE CENTRAL Y TABLAS SINCRONIZADAS CON CAPAS DEL MAPA
-        // =========================================================================
-        function buildDamCardHtml(p) {
+       function buildDamCardHtml(p) {
             const rainVal = getDamRainForHorizon(p, selectedForecastHorizon);
             const rainLabel = `Lluvia ${getHorizonShortLabel(selectedForecastHorizon)}`;
             const jenksTag = p.jenks_tag || 'Clasificación Jenks';
             const lvlInfo = getLevelCategoryInfo(p.volumen_pct);
+            const seqScore = getDamSequiaScore(p);
+            const seqColor = p.color_sequia || getSequiaColor(seqScore);
+            const seqModeLabel = sequiaRiskMode === 'climatico' ? 'Amenaza Clima (6m)' : 'Riesgo Operativo (6m)';
+            const anomStr = Number.isFinite(Number(p.anomalia_pct))
+                ? `${Number(p.anomalia_pct) >= 0 ? '+' : ''}${Number(p.anomalia_pct).toFixed(1)}%`
+                : 'Normal (0.0%)';
             const daily = p.daily_7d || [p.lluvia_24h_mm, 12, 10, 8, 7, 6, 5];
             const maxD = Math.max(...daily, 1);
             const activeDayIdx = selectedForecastHorizon === '7d'
@@ -2121,7 +2006,7 @@
                 : Math.max(0, Math.min(6, parseInt(String(selectedForecastHorizon).replace('d', ''), 10) || 0));
 
             return `
-                <div class="space-y-2.5 min-w-[235px]">
+                <div class="space-y-2 min-w-[245px]">
                     <div class="flex items-center justify-between gap-2 border-b border-slate-700/80 pb-1.5">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400">${p.pais}</span>
                         <span class="text-[10px] font-mono bg-slate-950 px-2 py-0.5 rounded-lg text-violet-300 border border-slate-800">${p.capacidad_mw.toLocaleString('es-AR')} MW</span>
@@ -2130,16 +2015,21 @@
                         <h3 class="font-bold text-sm text-white leading-snug">${p.nombre}</h3>
                         <p class="text-[11px] text-slate-400">${p.rio} · Cota ${p.cota_msnm} m s.n.m.</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-1.5">
-                        <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-2 text-center">
-                            <div class="text-[9.5px] text-slate-400">Nivel Embalse</div>
-                            <div class="text-sm font-extrabold font-mono" style="color:${lvlInfo.color}">${p.volumen_pct}%</div>
-                            <div class="text-[8.5px] font-semibold truncate mt-0.5" style="color:${lvlInfo.color}">${lvlInfo.label}</div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-1.5 text-center">
+                            <div class="text-[9px] text-slate-400">Nivel Embalse</div>
+                            <div class="text-xs font-extrabold font-mono" style="color:${lvlInfo.color}">${p.volumen_pct}%</div>
+                            <div class="text-[8px] font-semibold truncate mt-0.5" style="color:${lvlInfo.color}">${lvlInfo.label}</div>
                         </div>
-                        <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-2 text-center">
-                            <div class="text-[9.5px] text-slate-400">${rainLabel}</div>
-                            <div class="text-sm font-extrabold font-mono" style="color:${p.color_alerta_lluvia}">${rainVal.toFixed(1)} mm</div>
-                            <div class="text-[8.5px] font-semibold truncate mt-0.5" style="color:${p.color_alerta_lluvia}">${jenksTag}</div>
+                        <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-1.5 text-center">
+                            <div class="text-[9px] text-slate-400">${rainLabel}</div>
+                            <div class="text-xs font-extrabold font-mono" style="color:${p.color_alerta_lluvia}">${rainVal.toFixed(1)} mm</div>
+                            <div class="text-[8px] font-semibold truncate mt-0.5" style="color:${p.color_alerta_lluvia}">${jenksTag}</div>
+                        </div>
+                        <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-1.5 text-center">
+                            <div class="text-[9px] text-slate-400">SEAS5 6m</div>
+                            <div class="text-xs font-extrabold font-mono" style="color:${seqColor}">${anomStr}</div>
+                            <div class="text-[8px] font-semibold truncate mt-0.5 text-slate-300">${seqModeLabel.split(' ')[0]}: ${seqScore.toFixed(0)}</div>
                         </div>
                     </div>
                     <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-2">
@@ -2161,20 +2051,18 @@
                             }).join('')}
                         </div>
                     </div>
-                    </div>
-                    </div>
-                    <div class="mt-2 pt-1.5 border-t border-slate-700/70 text-[10px] text-slate-400 space-y-0.5 leading-snug">
+                    <div class="pt-1.5 border-t border-slate-700/70 text-[10px] text-slate-400 space-y-0.5 leading-snug">
                         <div class="flex justify-between gap-2">
                             <span class="text-slate-500">Fuente embalse:</span>
-                            <span class="text-slate-300 font-medium text-right">${p.fuente_nivel || 'Referencia base'}</span>
+                            <span class="text-slate-200 font-medium text-right">${p.fuente_nivel || 'Operador Nacional'}</span>
                         </div>
                         <div class="flex justify-between gap-2">
                             <span class="text-slate-500">Última act. nivel:</span>
-                            <span class="text-slate-300 font-mono text-right">${p.fecha_nivel || 'Manual / Base'}</span>
+                            <span class="text-slate-200 font-mono text-right">${p.fecha_nivel || 'Operativo diario'}</span>
                         </div>
                         <div class="flex justify-between gap-2">
                             <span class="text-slate-500">Pronóstico SEAS5:</span>
-                            <span class="text-slate-300 font-mono text-right">${p.fecha_seas5 || 'Mensual'}</span>
+                            <span class="text-amber-300 font-mono text-right">${p.fecha_seas5 || 'ECMWF SEAS5 · 6m'}</span>
                         </div>
                     </div>
                 </div>
