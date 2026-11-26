@@ -866,6 +866,8 @@
         // =========================================================================
        // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
         // =========================================================================
+        // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
+        // =========================================================================
         let map = null;
         let mapReady = false;
         let fallbackController = null;
@@ -881,36 +883,45 @@
         let sequiaRasterBounds = { west: -85.0, south: -60.0, east: -30.0, north: 15.0 };
         let latestCuencasCaptacionGeoJSON = { type: 'FeatureCollection', features: [] };
 
-        function getDamSequiaScore(p) {
-            // Anomalía SEAS5 6m (%): negativo = déficit de lluvias / sequía, positivo = exceso / húmedo
-            const anom = Number(p.anomalia_pct ?? 0);
-            // Escala 0..100 donde 50 = normal (0%), 100 = sequía extrema (-30%), 0 = muy húmedo (+30%)
-            const climaticThreat = Math.max(0, Math.min(100, 50 - (anom * (50 / 30))));
+        function computeSequiaScoreForMode(p, mode = sequiaRiskMode) {
+            const anom = Number(p.anomalia_pct ?? 0); // Negativo = sequía, Positivo = húmedo
+            const vol = Number(p.volumen_pct ?? 50);
 
-            if (sequiaRiskMode === 'climatico') {
-                return climaticThreat;
+            if (mode === 'climatico') {
+                // Escala 0..100 alineada con los colores del mapa raster según anomalía %
+                return Math.max(0, Math.min(100, 50 - (anom * (50 / 30))));
             }
 
-            // Riesgo Operativo: combina amenaza climática (60%) + vulnerabilidad por nivel de embalse (40%)
-            const vol = Number(p.volumen_pct ?? 50);
-            const storageVulnerability = Math.max(0, Math.min(100, 100 - vol));
-            return (climaticThreat * 0.60) + (storageVulnerability * 0.40);
+            // RIESGO OPERATIVO:
+            // Solo alcanza nivel Rojo (>= 80) si embalse bajo (< 50%) Y sequía naranja/roja (anom <= -6%)
+            const isDryZone = anom <= -6;
+            const isMildDry = anom <= -1 && anom > -6;
+            const isLowDam = vol < 50;
+            const isMedDam = vol >= 50 && vol < 70;
+
+            if (isLowDam && isDryZone) return 90;                             // Rojo: Embalse bajo + sequía naranja/roja
+            if ((isLowDam && isMildDry) || (isMedDam && isDryZone)) return 70; // Naranja: Riesgo combinado
+            if (isDryZone || isLowDam) return 52;                             // Amarillo: Moderado / amortiguado
+            return 25;                                                        // Verde: Controlado
+        }
+
+        function getDamSequiaScore(p) {
+            return computeSequiaScoreForMode(p, sequiaRiskMode);
         }
 
         const SEQUIA_PALETTES = {
             operativo: [
-                { min: 72, color: '#991b1b', label: 'Crítico (≥72)' },
-                { min: 58, color: '#d97706', label: 'Alto (58–71)' },
-                { min: 45, color: '#eab308', label: 'Moderado (45–57)' },
-                { min: 32, color: '#059669', label: 'Controlado (32–44)' },
-                { min: -Infinity, color: '#0284c7', label: 'Óptimo (<32)' }
+                { min: 80, color: '#dc2626', label: 'Crítico (Emb. bajo + Sequía)' },
+                { min: 65, color: '#d97706', label: 'Alto (Riesgo combinado)' },
+                { min: 45, color: '#eab308', label: 'Moderado (Amortiguado)' },
+                { min: -Infinity, color: '#059669', label: 'Controlado (Sin alerta)' }
             ],
             climatico: [
-                { min: 75, color: '#86198f', label: 'Déficit Extremo (< -15%)' },
-                { min: 60, color: '#c026d3', label: 'Déficit Severo (-15% a -6%)' },
-                { min: 52, color: '#e879f9', label: 'Déficit Leve (-6% a -1%)' },
-                { min: 45, color: '#94a3b8', label: 'Normal (-1% a +3%)' },
-                { min: -Infinity, color: '#06b6d4', label: 'Húmedo (> +3%)' }
+                { min: 75, color: '#b91c1c', label: 'Sequía Severa (≤ -15%)' },
+                { min: 60, color: '#f97316', label: 'Déficit Moderado (-15% a -6%)' },
+                { min: 51.7, color: '#facc15', label: 'Levemente Seco (-6% a -1%)' },
+                { min: 41.7, color: '#10b981', label: 'Normal / Húmedo (-1% a +5%)' },
+                { min: -Infinity, color: '#1d4ed8', label: 'Superávit (> +5%)' }
             ]
         };
 
@@ -929,7 +940,7 @@
             container.innerHTML = palette.map(item => `
                 <div class="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2 py-0.5">
                     <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40" style="background:${item.color}"></span>
-                    <span class="text-[9.5px] text-slate-200 truncate">${item.label}</span>
+                    <span class="text-[9.5px] text-slate-200 truncate" title="${item.label}">${item.label}</span>
                 </div>
             `).join('');
         }
@@ -974,194 +985,7 @@
                             p.anomalia_pct = Number(p.anomalia_pct ?? 0);
                         }
 
-                        const climScore = Math.max(0, Math.min(100, 50 - (p.anomalia_pct * (50 / 30))));
-                        const operScore = Number(((climScore * 0.60) + ((100 - (Number(p.volumen_pct) || 50)) * 0.40)).toFixed(1));
-                        p.riesgo_climatico = Number(climScore.toFixed(1));
-                        p.riesgo_operativo = operScore;
-                        p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
-                    });
-
-                    if (map && mapReady && map.getSource('sequia-seas5-src')) {
-                        map.getSource('sequia-seas5-src').setCoordinates([
-                            [sequiaRasterBounds.west, sequiaRasterBounds.north],
-                            [sequiaRasterBounds.east, sequiaRasterBounds.north],
-                            [sequiaRasterBounds.east, sequiaRasterBounds.south],
-                            [sequiaRasterBounds.west, sequiaRasterBounds.south]
-                        ]);
-                    }
-                }
-            } catch (_) {}
-        
-            try {
-                const respCuencas = await fetch(`cuencas_captacion.geojson?t=${Date.now()}`);
-                if (respCuencas.ok) {
-                    latestCuencasCaptacionGeoJSON = await respCuencas.json();
-                    if (map && mapReady && map.getSource('cuencas-captacion-src')) {
-                        map.getSource('cuencas-captacion-src').setData(latestCuencasCaptacionGeoJSON);
-                    }
-                }
-            } catch (_) {}
-
-            updateSequiaDamLegendScale();
-            updateDamPointsLayer();
-            renderAnalyticalTables();
-        }
-
-        function updateSequiaOpacity(val) {
-            sequiaLayerOpacity = Number(val) / 100;
-            const lbl = document.getElementById('lbl-sequia-opacity');
-            if (lbl) lbl.innerText = `${val}%`;
-            if (map && mapReady && map.getLayer('sequia-seas5-raster-layer')) {
-                map.setPaintProperty('sequia-seas5-raster-layer', 'raster-opacity', sequiaLayerOpacity);
-            }
-        }
-
-        function onSequiaModeChange(mode) {
-            sequiaRiskMode = mode;
-            const sel = document.getElementById('sel-sequia-modo');
-            if (sel && sel.value !== mode) sel.value = mode;
-            const lbl = document.getElementById('lbl-tabla-sequia-titulo');
-            if (lbl) {
-                lbl.textContent = mode === 'climatico'
-                    ? 'Ranking Amenaza Climática (6m)'
-                    : 'Ranking Riesgo Operativo (6m)';
-            }
-            dataRepresas.features.forEach(f => {
-                f.properties.color_sequia = getSequiaColor(getDamSequiaScore(f.properties), mode);
-            });
-            updateSequiaDamLegendScale();
-            activateDamColorCriterion('sequia');
-            updateDamPointsLayer();
-            renderAnalyticalTables();
-        }
-
-        function getDamRainForHorizon(p, horizon = selectedForecastHorizon) {
-            if (horizon === '7d') return Number(p.lluvia_7d_mm) || 0;
-            const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
-            const arr = p.daily_7d || [];
-            return Number(arr[dayIdx] !== undefined ? arr[dayIdx] : p.lluvia_24h_mm) || 0;
-        }
-
-        function getHorizonShortLabel(horizon = selectedForecastHorizon) {
-            if (horizon === '7d') return 'Acum. 7d';
-            const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
-            return dayIdx === 0 ? '24h (D1)' : `D${dayIdx + 1}`;
-        }
-
-        const DAM_OFFICIAL_METADATA = {
-            ITAIPU: { fuente: 'ONS Brasil / Itaipú Binacional', fecha: 'Operativo diario', clim: 38.0 },
-            BELO_MONTE: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 54.0 },
-            GURI: { fuente: 'CORPOELEC (Venezuela)', fecha: 'Boletín Guri', clim: 46.0 },
-            TUCURUI: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 58.0 },
-            PAULO_AFONSO: { fuente: 'ONS Brasil / CHESF', fecha: 'Operativo diario', clim: 74.0 },
-            JIRAU: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 62.0 },
-            SANTO_ANTONIO: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 61.0 },
-            ILHA_SOLTEIRA: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 44.0 },
-            YACYRETA: { fuente: 'EBY (Entidad Binacional Yacyretá)', fecha: 'Parte Hidrológico', clim: 34.0 },
-            MACAGUA: { fuente: 'CORPOELEC / CVG Edelca', fecha: 'Boletín Bajo Caroní', clim: 47.0 },
-            XINGO: { fuente: 'ONS Brasil / CHESF', fecha: 'Operativo diario', clim: 75.0 },
-            HIDROITUANGO: { fuente: 'XM Colombia / EPM', fecha: 'SIN Colombia diario', clim: 41.0 },
-            CARUACHI: { fuente: 'CORPOELEC / CVG Edelca', fecha: 'Boletín Bajo Caroní', clim: 46.0 },
-            SALTO_GRANDE: { fuente: 'CTM Salto Grande', fecha: 'Parte Hidrológico', clim: 36.0 },
-            PIEDRA_DEL_AGUILA: { fuente: 'AIC / CAMMESA (Argentina)', fecha: 'Parte Comahue', clim: 68.0 },
-            GUAVIO: { fuente: 'XM Colombia / Enel', fecha: 'SIN Colombia diario', clim: 45.0 },
-            EL_CHOCON: { fuente: 'AIC / CAMMESA (Argentina)', fecha: 'Parte Comahue', clim: 72.0 },
-            MANTARO: { fuente: 'COES SINAC (Perú)', fecha: 'Operación diaria', clim: 64.0 },
-            RALCO: { fuente: 'Coordinador Eléctrico Nacional (Chile)', fecha: 'Operación diaria', clim: 76.0 },
-            PENOL_GUATAPE: { fuente: 'XM Colombia / EPM', fecha: 'SIN Colombia diario', clim: 42.0 }
-        };
-
-        const dataRepresas = {
-            type: 'FeatureCollection',
-            features: damsRawList.map(d => {
-                const cls = classifyRainByJenksValue(d.lluvia_24h_mm);
-                const lvlInfo = getLevelCategoryInfo(d.volumen_pct);
-                const meta = DAM_OFFICIAL_METADATA[d.id] || { fuente: 'Operador Nacional', fecha: 'Operativo diario', clim: 50.0 };
-                const initAnom = typeof d.anomalia_pct === 'number'
-                    ? d.anomalia_pct
-                    : Number(((50 - meta.clim) * (30 / 50)).toFixed(1));
-                const riesgoClim = Math.max(0, Math.min(100, 50 - (initAnom * (50 / 30))));
-                const riesgoOper = Number((0.60 * riesgoClim + 0.40 * (100 - d.volumen_pct)).toFixed(1));
-                return {
-                    type: 'Feature',
-                    properties: {
-                        ...d,
-                        nombre_corto: getShortDamName(d.nombre),
-                        color_nivel: lvlInfo.color,
-                        nivel_tag: lvlInfo.label,
-                        jenks_rank: cls.rank,
-                        color_alerta_lluvia: cls.color,
-                        jenks_tag: cls.tag,
-                        has_rain_alert: cls.rank >= 4,
-                        fuente_nivel: meta.fuente,
-                        fecha_nivel: meta.fecha,
-                        fecha_seas5: 'ECMWF SEAS5 · 6m',
-                        anomalia_pct: initAnom,
-                        riesgo_climatico: Number(riesgoClim.toFixed(1)),
-                        riesgo_operativo: riesgoOper,
-                        color_sequia: getSequiaColor(riesgoOper, sequiaRiskMode)
-                    },
-                    geometry: { type: 'Point', coordinates: [d.lon, d.lat] }
-                };
-            })
-        };
-
-        function syncDamColorsWithRenderedPolygons(vectorFeatures, grid, lats, lons, top5Classes) {
-            const minAffectedMm = top5Classes && top5Classes.length > 0 ? top5Classes[0].minMm : 3.5;
-
-            dataRepresas.features.forEach(f => {
-                const p = f.properties;
-                const stationMm = getDamRainForHorizon(p, selectedForecastHorizon);
-                const fieldMm = (grid && lats && lons)
-                    ? bilinearSampleGrid(grid, lats, lons, p.lat, p.lon)
-                    : stationMm;
-
-                let matchedPolyProps = null;
-                for (let rank = 5; rank >= 1; rank--) {
-                    for (let i = 0; i < vectorFeatures.length; i++) {
-                        const vf = vectorFeatures[i];
-                        if (vf.properties.rank !== rank) continue;
-                        const geom = vf.geometry;
-                        if (geom.type === 'Polygon' && pointInGeoPolygonWithHoles(p.lon, p.lat, geom.coordinates)) {
-                            matchedPolyProps = vf.properties;
-                            break;
-                        } else if (geom.type === 'MultiPolygon') {
-                            for (const polyCoords of geom.coordinates) {
-                                if (pointInGeoPolygonWithHoles(p.lon, p.lat, polyCoords)) {
-                                    matchedPolyProps = vf.properties;
-                                    break;
-                                }
-                            }
-                            if (matchedPolyProps) break;
-                        }
-                    }
-                    if (matchedPolyProps) break;
-                }
-
-                if (matchedPolyProps) {
-                    p.jenks_rank = matchedPolyProps.rank;
-                    p.color_alerta_lluvia = matchedPolyProps.color;
-                    p.jenks_tag = matchedPolyProps.tag;
-                } else {
-                    const effectiveMm = Math.min(stationMm, fieldMm);
-                    if (effectiveMm < minAffectedMm - 1e-6) {
-                        p.jenks_rank = 0;
-                        p.color_alerta_lluvia = '#94a3b8';
-                        p.jenks_tag = stationMm < 0.3
-                            ? 'Sin afectación (Seco)'
-                            : `Fuera de zona (< ${minAffectedMm.toFixed(1)} mm)`;
-                    } else {
-                        const cls = classifyRainByJenksValue(effectiveMm);
-                        p.jenks_rank = cls.rank;
-                        p.color_alerta_lluvia = cls.color;
-                        p.jenks_tag = cls.tag;
-                    }
-                }
-
-                p.has_rain_alert = (Number(p.jenks_rank) || 0) >= 4;
-            });
-        }
-
+                        p.riesgo_climatico = Number(computeSequ
         // =========================================================================
         // 4. NATURAL EARTH 10M PHYSICAL VECTORS: LAGOS, RÍOS Y LÍMITES FINOS
         // =========================================================================
