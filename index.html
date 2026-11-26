@@ -879,11 +879,21 @@
                         const p = f.properties;
                         const info = payload.represas?.[p.id];
                         if (info) {
+                            if (typeof info.nivel_embalse === 'number') {
+                                p.volumen_pct = info.nivel_embalse;
+                                p.color_nivel = getNivelColor(p.volumen_pct);
+                            }
+                            p.fuente_nivel = info.fuente_nivel || 'Referencia base';
+                            p.fecha_nivel = info.fecha_nivel || 'Manual / Base';
+                            p.fecha_seas5 = payload.fecha_emision || 'Mensual';
                             p.anomalia_pct = info.anomalia_pct;
                             p.riesgo_climatico = info.riesgo_climatico;
                             p.riesgo_operativo = info.riesgo_operativo;
                             p.subcuencas_aporte = info.subcuencas_aporte;
                         } else {
+                            p.fuente_nivel = p.fuente_nivel || 'Referencia base';
+                            p.fecha_nivel = p.fecha_nivel || 'Manual / Base';
+                            p.fecha_seas5 = payload.fecha_emision || 'Mensual';
                             p.anomalia_pct = 0.0;
                             p.riesgo_climatico = 50.0;
                             p.riesgo_operativo = Number((0.65 * 50 + 0.35 * (100 - p.volumen_pct)).toFixed(1));
@@ -901,6 +911,7 @@
                     }
                 }
             } catch (_) {}
+        }
 
             try {
                 const respCuencas = await fetch(`cuencas_captacion.geojson?t=${Date.now()}`);
