@@ -2992,11 +2992,13 @@
             const chkRepresas = document.getElementById('chk-layer-represas-gris');
             const chkNiveles = document.getElementById('chk-layer-niveles');
             const chkLluvias = document.getElementById('chk-layer-lluvias-embalses');
+            const chkSequia = document.getElementById('chk-layer-sequia-presas');
             if (!chkRepresas || !chkNiveles || !chkLluvias) return;
 
             chkRepresas.checked = criterion === 'represas';
             chkNiveles.checked = criterion === 'niveles';
             chkLluvias.checked = criterion === 'lluvias';
+            if (chkSequia) chkSequia.checked = criterion === 'sequia';
             toggleThematicLayers();
         }
 
@@ -3004,17 +3006,17 @@
             const chkRepresas = document.getElementById('chk-layer-represas-gris');
             const chkNiveles = document.getElementById('chk-layer-niveles');
             const chkLluvias = document.getElementById('chk-layer-lluvias-embalses');
+            const chkSequia = document.getElementById('chk-layer-sequia-presas');
             if (!chkRepresas || !chkNiveles || !chkLluvias) return;
 
             if (criterion === 'represas' && chkRepresas.checked) {
-                chkNiveles.checked = false;
-                chkLluvias.checked = false;
+                chkNiveles.checked = false; chkLluvias.checked = false; if (chkSequia) chkSequia.checked = false;
             } else if (criterion === 'niveles' && chkNiveles.checked) {
-                chkRepresas.checked = false;
-                chkLluvias.checked = false;
+                chkRepresas.checked = false; chkLluvias.checked = false; if (chkSequia) chkSequia.checked = false;
             } else if (criterion === 'lluvias' && chkLluvias.checked) {
-                chkRepresas.checked = false;
-                chkNiveles.checked = false;
+                chkRepresas.checked = false; chkNiveles.checked = false; if (chkSequia) chkSequia.checked = false;
+            } else if (criterion === 'sequia' && chkSequia?.checked) {
+                chkRepresas.checked = false; chkNiveles.checked = false; chkLluvias.checked = false;
             }
             toggleThematicLayers();
         }
@@ -3026,6 +3028,8 @@
             const showAgua = Boolean(document.getElementById('chk-layer-embalses-agua')?.checked);
             const showRivers = Boolean(document.getElementById('chk-layer-ne-rivers')?.checked);
             const showLluviaCampo = Boolean(document.getElementById('chk-layer-lluvias-campo')?.checked);
+            const showSequiaCampo = Boolean(document.getElementById('chk-layer-sequia-campo')?.checked);
+            const showCuencasTodas = Boolean(document.getElementById('chk-layer-cuencas-aporte')?.checked);
 
             if (map && mapReady) {
                 const setVis = (id, vis) => {
@@ -3042,6 +3046,9 @@
                 setVis('ne-rivers-3d', showRivers);
                 setVis('gfs-jenks-fill-3d', showLluviaCampo);
                 setVis('gfs-jenks-outline-3d', showLluviaCampo);
+                setVis('sequia-seas5-raster-layer', showSequiaCampo);
+                setVis('cuencas-todas-fill', showCuencasTodas);
+                setVis('cuencas-todas-line', showCuencasTodas);
                 updateDamPointsLayer();
             }
 
