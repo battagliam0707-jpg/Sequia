@@ -1,6 +1,6 @@
 {
   "fecha_emision": "2026-10-01",
-  "actualizado_utc": "26/11/2026 15:13 UTC",
+  "actualizado_utc": "26/11/2026 15:41 UTC",
   "bounds": {
     "west": -85.0,
     "south": -60.0,
@@ -51,7 +51,7 @@
     "JIRAU": {
       "nivel_embalse": 71.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
+      "anomalia_pct": 55.5,
       "riesgo_climatico": 0.0,
       "riesgo_operativo": 10.1,
       "subcuencas_aporte": 41
@@ -59,7 +59,7 @@
     "SANTO_ANTONIO": {
       "nivel_embalse": 72.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
+      "anomalia_pct": 55.9,
       "riesgo_climatico": 0.0,
       "riesgo_operativo": 9.8,
       "subcuencas_aporte": 43
@@ -99,7 +99,7 @@
     "HIDROITUANGO": {
       "nivel_embalse": 78.9,
       "fuente_nivel": "reservoirs.earth (Antioquia)",
-      "anomalia_pct": 80.0,
+      "anomalia_pct": 67.7,
       "riesgo_climatico": 0.0,
       "riesgo_operativo": 7.4,
       "subcuencas_aporte": 5
@@ -115,7 +115,7 @@
     "SALTO_GRANDE": {
       "nivel_embalse": 76.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
+      "anomalia_pct": 63.6,
       "riesgo_climatico": 0.0,
       "riesgo_operativo": 8.4,
       "subcuencas_aporte": 29
@@ -123,15 +123,15 @@
     "PIEDRA_DEL_AGUILA": {
       "nivel_embalse": 64.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
-      "riesgo_climatico": 0.0,
-      "riesgo_operativo": 12.6,
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 77.6,
       "subcuencas_aporte": 5
     },
     "GUAVIO": {
       "nivel_embalse": 71.6,
       "fuente_nivel": "reservoirs.earth (Cundinamarca)",
-      "anomalia_pct": 80.0,
+      "anomalia_pct": 40.0,
       "riesgo_climatico": 0.0,
       "riesgo_operativo": 9.9,
       "subcuencas_aporte": 1
@@ -139,25 +139,25 @@
     "EL_CHOCON": {
       "nivel_embalse": 23.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
-      "riesgo_climatico": 0.0,
-      "riesgo_operativo": 26.9,
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 92.0,
       "subcuencas_aporte": 7
     },
     "MANTARO": {
       "nivel_embalse": 53.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
-      "riesgo_climatico": 0.0,
-      "riesgo_operativo": 16.4,
+      "anomalia_pct": -65.5,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 81.5,
       "subcuencas_aporte": 1
     },
     "RALCO": {
       "nivel_embalse": 21.0,
       "fuente_nivel": "Referencia base",
-      "anomalia_pct": 80.0,
-      "riesgo_climatico": 0.0,
-      "riesgo_operativo": 27.6,
+      "anomalia_pct": -80.0,
+      "riesgo_climatico": 100.0,
+      "riesgo_operativo": 92.7,
       "subcuencas_aporte": 1
     },
     "PENOL_GUATAPE": {
