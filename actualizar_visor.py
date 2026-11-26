@@ -288,6 +288,8 @@ for idx, s in enumerate(stats):
     r_oper = round((0.65 * r_clima) + (0.35 * vuln_embalse), 1)
     dam_id = represas.loc[idx, "id"]
     resultados_represas[dam_id] = {
+        "nivel_embalse": float(represas.loc[idx, "nivel_embalse"]),
+        "fuente_nivel": str(represas.loc[idx, "fuente_nivel"]),
         "anomalia_pct": anom,
         "riesgo_climatico": r_clima,
         "riesgo_operativo": r_oper,
