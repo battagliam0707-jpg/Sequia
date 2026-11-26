@@ -911,8 +911,7 @@
                     }
                 }
             } catch (_) {}
-        }
-
+        
             try {
                 const respCuencas = await fetch(`cuencas_captacion.geojson?t=${Date.now()}`);
                 if (respCuencas.ok) {
