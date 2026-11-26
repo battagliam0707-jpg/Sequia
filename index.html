@@ -360,6 +360,76 @@
                 </div>
             </div>
 
+<!-- SECCIÓN 4B: Sequía Estacional ECMWF SEAS5 (6 Meses) y Cuencas -->
+            <div class="space-y-1.5 border-b border-slate-800 pb-2">
+                <div class="flex items-center justify-between gap-1">
+                    <label class="flex items-center gap-2 cursor-pointer min-w-0">
+                        <input
+                            id="chk-layer-sequia-campo"
+                            type="checkbox"
+                            onchange="toggleThematicLayers()"
+                            class="w-4 h-4 rounded accent-rose-500 cursor-pointer shrink-0"
+                        />
+                        <span class="text-xs font-bold text-white truncate">Sequía SEAS5 (6 Meses)</span>
+                    </label>
+                    <span id="badge-sequia-fecha" class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-400/30 shrink-0">
+                        SEAS5 6m
+                    </span>
+                </div>
+
+                <!-- Colorear los 20 puntos de represas por Riesgo de Sequía -->
+                <div class="flex items-center justify-between gap-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                            id="chk-layer-sequia-presas"
+                            type="checkbox"
+                            onchange="onDamColorCriterionToggle('sequia')"
+                            class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer"
+                        />
+                        <span class="text-[11px] font-semibold text-slate-200">Puntos por Riesgo Sequía</span>
+                    </label>
+                    <select id="sel-sequia-modo" onchange="onSequiaModeChange(this.value)" class="bg-slate-950 border border-slate-700 text-[9.5px] text-amber-300 rounded-lg px-1.5 py-0.5 outline-none">
+                        <option value="operativo">Riesgo Operativo</option>
+                        <option value="climatico">Amenaza Clima</option>
+                    </select>
+                </div>
+
+                <!-- Ver polígonos de cuencas hidrográficas aguas arriba -->
+                <label class="flex items-center gap-2 cursor-pointer text-[10.5px] text-slate-300">
+                    <input
+                        id="chk-layer-cuencas-aporte"
+                        type="checkbox"
+                        onchange="toggleThematicLayers()"
+                        class="w-3.5 h-3.5 rounded accent-amber-400 cursor-pointer"
+                    />
+                    <span>Ver todas las cuencas aguas arriba</span>
+                </label>
+
+                <!-- Opacidad capa raster sequía -->
+                <div class="space-y-0.5">
+                    <div class="flex justify-between text-[10px]">
+                        <span class="text-slate-400">Opacidad anomalía 6m</span>
+                        <span id="lbl-sequia-opacity" class="font-mono text-rose-300 font-semibold">55%</span>
+                    </div>
+                    <input
+                        id="slider-sequia-opacity"
+                        type="range"
+                        min="0"
+                        max="90"
+                        value="55"
+                        oninput="updateSequiaOpacity(this.value)"
+                        class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    />
+                </div>
+
+                <div class="h-2 rounded-full" style="background: linear-gradient(to right, #1d4ed8, #10b981, #fef08a, #f97316, #b91c1c);"></div>
+                <div class="flex justify-between text-[8.5px] font-mono text-slate-400">
+                    <span>+35% Húmedo</span>
+                    <span>0% Normal</span>
+                    <span>-35% Sequía</span>
+                </div>
+            </div>
+            
             <!-- SECCIÓN 5: Hidrografía Natural Earth 10m (Límites finos, Lagos y Ríos) -->
             <div class="space-y-1.5">
                 <div class="flex items-center justify-between">
