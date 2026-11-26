@@ -388,7 +388,7 @@
                     </span>
                 </div>
 
-                <!-- Colorear los 20 puntos de represas por Riesgo de Sequía -->
+               <!-- Colorear los 20 puntos de represas por Riesgo de Sequía -->
                 <div class="flex items-center justify-between gap-1">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input
@@ -403,6 +403,12 @@
                         <option value="operativo">Riesgo Operativo</option>
                         <option value="climatico">Amenaza Clima</option>
                     </select>
+                </div>
+
+                <!-- Simbología dinámica exclusiva para puntos de represas (diferenciada del raster) -->
+                <div class="mt-1.5 pt-1.5 border-t border-slate-800/80">
+                    <div class="text-[9.5px] font-semibold text-slate-400 mb-1">Simbología Presas (Modo activo):</div>
+                    <div id="legend-sequia-dam-scale" class="grid grid-cols-2 gap-1"></div>
                 </div>
 
                 <!-- Ver polígonos de cuencas hidrográficas aguas arriba -->
