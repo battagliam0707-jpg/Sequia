@@ -889,7 +889,7 @@
         }
 
         // =========================================================================
-        // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
+       // 3. ESTADO GLOBAL DEL VISOR, SELECCIÓN DE REPRESA Y HORIZONTE TEMPORAL
         // =========================================================================
         let map = null;
         let mapReady = false;
@@ -906,20 +906,36 @@
         let sequiaRasterBounds = { west: -85.0, south: -60.0, east: -30.0, north: 15.0 };
         let latestCuencasCaptacionGeoJSON = { type: 'FeatureCollection', features: [] };
 
-       const SEQUIA_PALETTES = {
+        function getDamSequiaScore(p) {
+            // Anomalía SEAS5 6m (%): negativo = déficit de lluvias / sequía, positivo = exceso / húmedo
+            const anom = Number(p.anomalia_pct ?? 0);
+            // Escala 0..100 donde 50 = normal (0%), 100 = sequía extrema (-30%), 0 = muy húmedo (+30%)
+            const climaticThreat = Math.max(0, Math.min(100, 50 - (anom * (50 / 30))));
+
+            if (sequiaRiskMode === 'climatico') {
+                return climaticThreat;
+            }
+
+            // Riesgo Operativo: combina amenaza climática (60%) + vulnerabilidad por nivel de embalse (40%)
+            const vol = Number(p.volumen_pct ?? 50);
+            const storageVulnerability = Math.max(0, Math.min(100, 100 - vol));
+            return (climaticThreat * 0.60) + (storageVulnerability * 0.40);
+        }
+
+        const SEQUIA_PALETTES = {
             operativo: [
-                { min: 85, color: '#991b1b', label: 'Crítico (≥85)' },
-                { min: 68, color: '#d97706', label: 'Alto (68–84)' },
-                { min: 52, color: '#eab308', label: 'Moderado (52–67)' },
-                { min: 35, color: '#059669', label: 'Controlado (35–51)' },
-                { min: -Infinity, color: '#0284c7', label: 'Óptimo (<35)' }
+                { min: 72, color: '#991b1b', label: 'Crítico (≥72)' },
+                { min: 58, color: '#d97706', label: 'Alto (58–71)' },
+                { min: 45, color: '#eab308', label: 'Moderado (45–57)' },
+                { min: 32, color: '#059669', label: 'Controlado (32–44)' },
+                { min: -Infinity, color: '#0284c7', label: 'Óptimo (<32)' }
             ],
             climatico: [
-                { min: 85, color: '#86198f', label: 'Déficit Extremo (≥85)' },
-                { min: 68, color: '#c026d3', label: 'Déficit Severo (68–84)' },
-                { min: 55, color: '#e879f9', label: 'Déficit Leve (55–67)' },
-                { min: 42, color: '#94a3b8', label: 'Normal (42–54)' },
-                { min: -Infinity, color: '#06b6d4', label: 'Húmedo (<42)' }
+                { min: 75, color: '#86198f', label: 'Déficit Extremo (< -15%)' },
+                { min: 60, color: '#c026d3', label: 'Déficit Severo (-15% a -6%)' },
+                { min: 52, color: '#e879f9', label: 'Déficit Leve (-6% a -1%)' },
+                { min: 45, color: '#94a3b8', label: 'Normal (-1% a +3%)' },
+                { min: -Infinity, color: '#06b6d4', label: 'Húmedo (> +3%)' }
             ]
         };
 
@@ -950,11 +966,6 @@
                 toggleThematicLayers();
             }
         }
-        function getDamSequiaScore(p) {
-            return sequiaRiskMode === 'climatico'
-                ? (Number(p.riesgo_climatico) || 50)
-                : (Number(p.riesgo_operativo) || 50);
-        }
 
         async function fetchSequiaSeas5Data() {
             try {
@@ -979,19 +990,20 @@
                             p.fuente_nivel = info.fuente_nivel || 'Referencia base';
                             p.fecha_nivel = info.fecha_nivel || 'Manual / Base';
                             p.fecha_seas5 = payload.fecha_emision || 'Mensual';
-                            p.anomalia_pct = info.anomalia_pct;
-                            p.riesgo_climatico = info.riesgo_climatico;
-                            p.riesgo_operativo = info.riesgo_operativo;
+                            p.anomalia_pct = Number(info.anomalia_pct ?? 0);
                             p.subcuencas_aporte = info.subcuencas_aporte;
                         } else {
                             p.fuente_nivel = p.fuente_nivel || 'Referencia base';
                             p.fecha_nivel = p.fecha_nivel || 'Manual / Base';
                             p.fecha_seas5 = payload.fecha_emision || 'Mensual';
-                            p.anomalia_pct = 0.0;
-                            p.riesgo_climatico = 50.0;
-                            p.riesgo_operativo = Number((0.65 * 50 + 0.35 * (100 - p.volumen_pct)).toFixed(1));
+                            p.anomalia_pct = Number(p.anomalia_pct ?? 0);
                         }
-                        p.color_sequia = getSequiaColor(getDamSequiaScore(p));
+
+                        const climScore = Math.max(0, Math.min(100, 50 - (p.anomalia_pct * (50 / 30))));
+                        const operScore = Number(((climScore * 0.60) + ((100 - (Number(p.volumen_pct) || 50)) * 0.40)).toFixed(1));
+                        p.riesgo_climatico = Number(climScore.toFixed(1));
+                        p.riesgo_operativo = operScore;
+                        p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
                     });
 
                     if (map && mapReady && map.getSource('sequia-seas5-src')) {
@@ -1015,6 +1027,7 @@
                 }
             } catch (_) {}
 
+            updateSequiaDamLegendScale();
             updateDamPointsLayer();
             renderAnalyticalTables();
         }
@@ -1046,6 +1059,7 @@
             updateDamPointsLayer();
             renderAnalyticalTables();
         }
+
         function getDamRainForHorizon(p, horizon = selectedForecastHorizon) {
             if (horizon === '7d') return Number(p.lluvia_7d_mm) || 0;
             const dayIdx = Math.max(0, Math.min(6, parseInt(String(horizon).replace('d', ''), 10) || 0));
@@ -1088,7 +1102,10 @@
                 const cls = classifyRainByJenksValue(d.lluvia_24h_mm);
                 const lvlInfo = getLevelCategoryInfo(d.volumen_pct);
                 const meta = DAM_OFFICIAL_METADATA[d.id] || { fuente: 'Operador Nacional', fecha: 'Operativo diario', clim: 50.0 };
-                const riesgoClim = meta.clim;
+                const initAnom = typeof d.anomalia_pct === 'number'
+                    ? d.anomalia_pct
+                    : Number(((50 - meta.clim) * (30 / 50)).toFixed(1));
+                const riesgoClim = Math.max(0, Math.min(100, 50 - (initAnom * (50 / 30))));
                 const riesgoOper = Number((0.60 * riesgoClim + 0.40 * (100 - d.volumen_pct)).toFixed(1));
                 return {
                     type: 'Feature',
@@ -1104,9 +1121,10 @@
                         fuente_nivel: meta.fuente,
                         fecha_nivel: meta.fecha,
                         fecha_seas5: 'ECMWF SEAS5 · 6m',
-                        riesgo_climatico: riesgoClim,
+                        anomalia_pct: initAnom,
+                        riesgo_climatico: Number(riesgoClim.toFixed(1)),
                         riesgo_operativo: riesgoOper,
-                        color_sequia: getSequiaColor(riesgoOper)
+                        color_sequia: getSequiaColor(riesgoOper, sequiaRiskMode)
                     },
                     geometry: { type: 'Point', coordinates: [d.lon, d.lat] }
                 };
