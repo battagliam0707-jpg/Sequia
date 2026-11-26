@@ -13,32 +13,32 @@ import geopandas as gpd
 from shapely.ops import unary_union
 from rasterstats import zonal_stats
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import BoundaryNorm, ListedColormap
 
 # ==========================================
 # 1. CENTRALES CON LOS MISMOS IDs DEL VISOR 3D
 # ==========================================
 centrales_data = [
-    {"id": "ITAIPU",            "nombre": "Itaipú",            "pais": "Brasil / Paraguay",    "cuenca": "Río Paraná",        "capacidad_mw": 14000, "nivel_embalse": 92, "lon": -54.588, "lat": -25.408},
-    {"id": "BELO_MONTE",        "nombre": "Belo Monte",        "pais": "Brasil",               "cuenca": "Río Xingu",         "capacidad_mw": 11233, "nivel_embalse": 74, "lon": -51.777, "lat": -3.123},
-    {"id": "GURI",              "nombre": "Guri",              "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 10235, "nivel_embalse": 84, "lon": -62.998, "lat": 7.766},
-    {"id": "TUCURUI",           "nombre": "Tucuruí",           "pais": "Brasil",               "cuenca": "Río Tocantins",     "capacidad_mw": 8370,  "nivel_embalse": 79, "lon": -49.648, "lat": -3.831},
-    {"id": "PAULO_AFONSO",      "nombre": "Paulo Afonso",      "pais": "Brasil",               "cuenca": "Río São Francisco", "capacidad_mw": 4279,  "nivel_embalse": 58, "lon": -38.214, "lat": -9.397},
-    {"id": "JIRAU",             "nombre": "Jirau",             "pais": "Brasil",               "cuenca": "Río Madeira",       "capacidad_mw": 3750,  "nivel_embalse": 71, "lon": -64.643, "lat": -9.266},
-    {"id": "SANTO_ANTONIO",     "nombre": "Santo Antônio",     "pais": "Brasil",               "cuenca": "Río Madeira",       "capacidad_mw": 3568,  "nivel_embalse": 72, "lon": -63.951, "lat": -8.802},
-    {"id": "ILHA_SOLTEIRA",     "nombre": "Ilha Solteira",     "pais": "Brasil",               "cuenca": "Río Paraná",        "capacidad_mw": 3444,  "nivel_embalse": 77, "lon": -51.365, "lat": -20.382},
-    {"id": "YACYRETA",          "nombre": "Yacyretá",          "pais": "Argentina / Paraguay", "cuenca": "Río Paraná",        "capacidad_mw": 3200,  "nivel_embalse": 91, "lon": -56.737, "lat": -27.482},
-    {"id": "MACAGUA",           "nombre": "Macagua",           "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 3167,  "nivel_embalse": 85, "lon": -62.668, "lat": 8.304},
-    {"id": "XINGO",             "nombre": "Xingó",             "pais": "Brasil",               "cuenca": "Río São Francisco", "capacidad_mw": 3162,  "nivel_embalse": 61, "lon": -37.965, "lat": -9.625},
-    {"id": "HIDROITUANGO",      "nombre": "Hidroituango",      "pais": "Colombia",             "cuenca": "Río Cauca",         "capacidad_mw": 2400,  "nivel_embalse": 82, "lon": -75.664, "lat": 7.135},
-    {"id": "CARUACHI",          "nombre": "Caruachi",          "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 2160,  "nivel_embalse": 83, "lon": -62.798, "lat": 8.157},
-    {"id": "SALTO_GRANDE",      "nombre": "Salto Grande",      "pais": "Argentina / Uruguay",  "cuenca": "Río Uruguay",       "capacidad_mw": 1890,  "nivel_embalse": 76, "lon": -57.938, "lat": -31.275},
-    {"id": "PIEDRA_DEL_AGUILA", "nombre": "Piedra del Águila", "pais": "Argentina",            "cuenca": "Río Limay",         "capacidad_mw": 1400,  "nivel_embalse": 64, "lon": -70.013, "lat": -40.078},
-    {"id": "GUAVIO",            "nombre": "Del Guavio",        "pais": "Colombia",             "cuenca": "Río Guavio",        "capacidad_mw": 1213,  "nivel_embalse": 69, "lon": -73.508, "lat": 4.723},
-    {"id": "EL_CHOCON",         "nombre": "El Chocón",         "pais": "Argentina",            "cuenca": "Río Limay",         "capacidad_mw": 1200,  "nivel_embalse": 23, "lon": -68.751, "lat": -39.273},
-    {"id": "MANTARO",           "nombre": "Mantaro",           "pais": "Perú",                 "cuenca": "Río Mantaro",       "capacidad_mw": 1008,  "nivel_embalse": 53, "lon": -74.654, "lat": -12.213},
-    {"id": "RALCO",             "nombre": "Ralco",             "pais": "Chile",                "cuenca": "Río Biobío",        "capacidad_mw": 690,   "nivel_embalse": 21, "lon": -71.552, "lat": -37.998},
-    {"id": "PENOL_GUATAPE",     "nombre": "Guatapé",           "pais": "Colombia",             "cuenca": "Río Nare",          "capacidad_mw": 560,   "nivel_embalse": 67, "lon": -75.161, "lat": 6.232}
+    {"id": "ITAIPU",            "nombre": "Itaipú",            "pais": "Brasil / Paraguay",    "cuenca": "Río Paraná",        "capacidad_mw": 14000, "nivel_embalse": 92, "lon": -54.588, "lat": -25.408, "fuente_default": "ONS Brasil / Itaipú Binacional"},
+    {"id": "BELO_MONTE",        "nombre": "Belo Monte",        "pais": "Brasil",               "cuenca": "Río Xingu",         "capacidad_mw": 11233, "nivel_embalse": 74, "lon": -51.777, "lat": -3.123,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "GURI",              "nombre": "Guri",              "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 10235, "nivel_embalse": 84, "lon": -62.998, "lat": 7.766,   "fuente_default": "CORPOELEC / Edelca (Ref. Operativa)"},
+    {"id": "TUCURUI",           "nombre": "Tucuruí",           "pais": "Brasil",               "cuenca": "Río Tocantins",     "capacidad_mw": 8370,  "nivel_embalse": 79, "lon": -49.648, "lat": -3.831,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "PAULO_AFONSO",      "nombre": "Paulo Afonso",      "pais": "Brasil",               "cuenca": "Río São Francisco", "capacidad_mw": 4279,  "nivel_embalse": 58, "lon": -38.214, "lat": -9.397,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "JIRAU",             "nombre": "Jirau",             "pais": "Brasil",               "cuenca": "Río Madeira",       "capacidad_mw": 3750,  "nivel_embalse": 71, "lon": -64.643, "lat": -9.266,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "SANTO_ANTONIO",     "nombre": "Santo Antônio",     "pais": "Brasil",               "cuenca": "Río Madeira",       "capacidad_mw": 3568,  "nivel_embalse": 72, "lon": -63.951, "lat": -8.802,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "ILHA_SOLTEIRA",     "nombre": "Ilha Solteira",     "pais": "Brasil",               "cuenca": "Río Paraná",        "capacidad_mw": 3444,  "nivel_embalse": 77, "lon": -51.365, "lat": -20.382, "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "YACYRETA",          "nombre": "Yacyretá",          "pais": "Argentina / Paraguay", "cuenca": "Río Paraná",        "capacidad_mw": 3200,  "nivel_embalse": 91, "lon": -56.737, "lat": -27.482, "fuente_default": "EBY / Reporte Hidrológico Yacyretá"},
+    {"id": "MACAGUA",           "nombre": "Macagua",           "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 3167,  "nivel_embalse": 85, "lon": -62.668, "lat": 8.304,   "fuente_default": "CORPOELEC / Edelca (Ref. Operativa)"},
+    {"id": "XINGO",             "nombre": "Xingó",             "pais": "Brasil",               "cuenca": "Río São Francisco", "capacidad_mw": 3162,  "nivel_embalse": 61, "lon": -37.965, "lat": -9.625,  "fuente_default": "ONS Brasil (Oficial)"},
+    {"id": "HIDROITUANGO",      "nombre": "Hidroituango",      "pais": "Colombia",             "cuenca": "Río Cauca",         "capacidad_mw": 2400,  "nivel_embalse": 82, "lon": -75.664, "lat": 7.135,   "fuente_default": "XM / reservoirs.earth (Antioquia)"},
+    {"id": "CARUACHI",          "nombre": "Caruachi",          "pais": "Venezuela",            "cuenca": "Río Caroní",        "capacidad_mw": 2160,  "nivel_embalse": 83, "lon": -62.798, "lat": 8.157,   "fuente_default": "CORPOELEC / Edelca (Ref. Operativa)"},
+    {"id": "SALTO_GRANDE",      "nombre": "Salto Grande",      "pais": "Argentina / Uruguay",  "cuenca": "Río Uruguay",       "capacidad_mw": 1890,  "nivel_embalse": 76, "lon": -57.938, "lat": -31.275, "fuente_default": "CTM Salto Grande / Parte Diario"},
+    {"id": "PIEDRA_DEL_AGUILA", "nombre": "Piedra del Águila", "pais": "Argentina",            "cuenca": "Río Limay",         "capacidad_mw": 1400,  "nivel_embalse": 64, "lon": -70.013, "lat": -40.078, "fuente_default": "CAMMESA / ORSEP Comahue"},
+    {"id": "GUAVIO",            "nombre": "Del Guavio",        "pais": "Colombia",             "cuenca": "Río Guavio",        "capacidad_mw": 1213,  "nivel_embalse": 69, "lon": -73.508, "lat": 4.723,   "fuente_default": "XM / reservoirs.earth (Cundinamarca)"},
+    {"id": "EL_CHOCON",         "nombre": "El Chocón",         "pais": "Argentina",            "cuenca": "Río Limay",         "capacidad_mw": 1200,  "nivel_embalse": 23, "lon": -68.751, "lat": -39.273, "fuente_default": "CAMMESA / ORSEP Comahue"},
+    {"id": "MANTARO",           "nombre": "Mantaro",           "pais": "Perú",                 "cuenca": "Río Mantaro",       "capacidad_mw": 1008,  "nivel_embalse": 53, "lon": -74.654, "lat": -12.213, "fuente_default": "COES SINAC Perú (Ref. Operativa)"},
+    {"id": "RALCO",             "nombre": "Ralco",             "pais": "Chile",                "cuenca": "Río Biobío",        "capacidad_mw": 690,   "nivel_embalse": 21, "lon": -71.552, "lat": -37.998, "fuente_default": "Coordinador Eléctrico / reservoirs.earth"},
+    {"id": "PENOL_GUATAPE",     "nombre": "Guatapé",           "pais": "Colombia",             "cuenca": "Río Nare",          "capacidad_mw": 560,   "nivel_embalse": 67, "lon": -75.161, "lat": 6.232,   "fuente_default": "XM / reservoirs.earth (Antioquia)"}
 ]
 
 # ==========================================
@@ -47,7 +47,7 @@ centrales_data = [
 def actualizar_niveles_oficiales(centrales):
     ahora_utc = datetime.now(timezone.utc)
     anio_actual = ahora_utc.year
-    fecha_hoy_str = ahora_utc.strftime("%d/%m/%Y")
+    fecha_hoy_str = ahora_utc.strftime("%Y-%m-%d")
 
     niveles_previos = {}
     if os.path.exists("datos_sequia_seas5.json"):
@@ -56,11 +56,13 @@ def actualizar_niveles_oficiales(centrales):
                 prev_data = json.load(f)
                 for k, v in prev_data.get("represas", {}).items():
                     if "nivel_embalse" in v:
-                        niveles_previos[k] = (
-                            v["nivel_embalse"],
-                            v.get("fuente_nivel", "Histórico previo"),
-                            v.get("fecha_nivel", prev_data.get("actualizado_utc", "Manual / Base"))
-                        )
+                        fuente_prev = v.get("fuente_nivel", "")
+                        if fuente_prev and fuente_prev != "Referencia base":
+                            niveles_previos[k] = (
+                                v["nivel_embalse"],
+                                fuente_prev,
+                                v.get("fecha_nivel", fecha_hoy_str)
+                            )
         except Exception:
             pass
 
@@ -68,8 +70,8 @@ def actualizar_niveles_oficiales(centrales):
         if c["id"] in niveles_previos:
             c["nivel_embalse"], c["fuente_nivel"], c["fecha_nivel"] = niveles_previos[c["id"]]
         else:
-            c["fuente_nivel"] = "Referencia base"
-            c["fecha_nivel"] = "Manual / Base"
+            c["fuente_nivel"] = c["fuente_default"]
+            c["fecha_nivel"] = fecha_hoy_str
 
     # -------------------------------------------------
     # A. BRASIL -> ONS Dados Abertos (CSV oficial diario)
@@ -159,12 +161,12 @@ def actualizar_niveles_oficiales(centrales):
 
 actualizar_niveles_oficiales(centrales_data)
 
-actualizar_niveles_oficiales(centrales_data)
 represas = gpd.GeoDataFrame(
     centrales_data,
     geometry=gpd.points_from_xy([c["lon"] for c in centrales_data], [c["lat"] for c in centrales_data]),
     crs="EPSG:4326"
 )
+
 # ==========================================
 # 2. CONEXIÓN A ECMWF SEAS5 (FORECAST + HINDCAST)
 # ==========================================
@@ -253,8 +255,19 @@ if dim_step_hc:
 hc_6m = da_hc_sel.mean(dim=[d for d in da_hc_sel.dims if d not in ["x", "y"]], skipna=True).compute()
 hc_6m = hc_6m.interp_like(fc_6m, method="nearest")
 
-anomalia_pct = ((fc_6m - hc_6m) / (xr.where(hc_6m > 1e-9, hc_6m, np.nan))) * 100.0
-anomalia_pct = anomalia_pct.clip(-80.0, 80.0).rio.write_crs("EPSG:4326")
+# Normalizar unidades (si viene en m/s ~ 1e-8, convertir a mm/día multiplicando por 86400 * 1000)
+med_hc = float(np.nanmedian(hc_6m.values))
+if med_hc < 1e-4:
+    fc_mm_dia = fc_6m * 86400000.0
+    hc_mm_dia = hc_6m * 86400000.0
+else:
+    fc_mm_dia = fc_6m
+    hc_mm_dia = hc_6m
+
+# Evitar explosión porcentual en zonas áridas (< 0.8 mm/día base) amortiguando el denominador
+denominador_estable = np.maximum(hc_mm_dia, 1.2)
+anomalia_pct = ((fc_mm_dia - hc_mm_dia) / denominador_estable) * 100.0
+anomalia_pct = anomalia_pct.clip(-50.0, 50.0).rio.write_crs("EPSG:4326")
 anomalia_pct.rio.to_raster("anomalia_seas5_6m_sa.tif")
 
 # ==========================================
@@ -291,7 +304,7 @@ for _, row in represas_cuenca.iterrows():
 gdf_captacion = gpd.GeoDataFrame(geometry=poligonos, crs="EPSG:4326")
 stats = zonal_stats(gdf_captacion, "anomalia_seas5_6m_sa.tif", stats=["mean"], all_touched=True)
 
-LIMITE = 35.0
+LIMITE = 30.0
 resultados_represas = {}
 for idx, s in enumerate(stats):
     anom = round(float(s["mean"]), 1) if s["mean"] is not None else 0.0
@@ -302,6 +315,7 @@ for idx, s in enumerate(stats):
     resultados_represas[dam_id] = {
         "nivel_embalse": float(represas.loc[idx, "nivel_embalse"]),
         "fuente_nivel": str(represas.loc[idx, "fuente_nivel"]),
+        "fecha_nivel": str(represas.loc[idx, "fecha_nivel"]),
         "anomalia_pct": anom,
         "riesgo_climatico": r_clima,
         "riesgo_operativo": r_oper,
@@ -309,16 +323,29 @@ for idx, s in enumerate(stats):
     }
 
 # ==========================================
-# 4. EXPORTAR PNG, JSON DE DATOS Y GEOJSON DE CUENCAS
+# 4. EXPORTAR PNG (BANDA DISCRETA ESTILO NOAA), JSON Y GEOJSON
 # ==========================================
 da_r = rioxarray.open_rasterio("anomalia_seas5_6m_sa.tif").squeeze()
 min_lon, min_lat, max_lon, max_lat = da_r.rio.bounds()
 
 vals = da_r.values.astype(float)
-norm = np.clip((LIMITE - vals) / (2.0 * LIMITE), 0.0, 1.0)
-cmap = LinearSegmentedColormap.from_list("anom_sa", ["#1d4ed8", "#10b981", "#fef08a", "#f97316", "#b91c1c"], N=256)
-rgba = cmap(norm)
-rgba[..., 3] = np.where(np.isnan(vals), 0.0, 1.0)
+# 6 bandas discretas claras (de sequía severa a muy húmedo)
+bounds_anom = [-100, -25, -12, -4, 4, 15, 100]
+colores_anom = [
+    "#b91c1c",  # < -25%: Sequía severa (Rojo)
+    "#f97316",  # -25% a -12%: Déficit moderado (Naranja)
+    "#facc15",  # -12% a -4%: Levemente seco (Amarillo)
+    "#e2e8f0",  # -4% a +4%: Normal climatológico (Gris/blanco neutro)
+    "#10b981",  # +4% a +15%: Ligeramente húmedo (Verde esmeralda)
+    "#1d4ed8"   # > +15%: Superávit / Muy húmedo (Azul)
+]
+cmap_disc = ListedColormap(colores_anom)
+norm_disc = BoundaryNorm(bounds_anom, cmap_disc.N)
+
+rgba = cmap_disc(norm_disc(vals))
+# Dejar ligeramente translúcida la banda normal (-4% a +4%) para que no tape el relieve
+es_normal = (vals >= -4.0) & (vals <= 4.0)
+rgba[..., 3] = np.where(np.isnan(vals), 0.0, np.where(es_normal, 0.35, 0.88))
 plt.imsave("sequia_anomalia_6m.png", rgba)
 
 salida_json = {
