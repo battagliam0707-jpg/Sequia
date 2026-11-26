@@ -411,6 +411,12 @@
                     <div id="legend-sequia-dam-scale" class="grid grid-cols-2 gap-1"></div>
                 </div>
 
+                <!-- Simbología dinámica exclusiva para puntos de represas (diferenciada del raster) -->
+                <div class="mt-1.5 pt-1.5 border-t border-slate-800/80">
+                    <div class="text-[9.5px] font-semibold text-slate-400 mb-1">Simbología Presas (Modo activo):</div>
+                    <div id="legend-sequia-dam-scale" class="grid grid-cols-2 gap-1"></div>
+                </div>
+
                 <!-- Ver polígonos de cuencas hidrográficas aguas arriba -->
                 <label class="flex items-center gap-2 cursor-pointer text-[10.5px] text-slate-300">
                     <input
@@ -421,6 +427,14 @@
                     />
                     <span>Ver todas las cuencas aguas arriba</span>
                 </label>
+
+                <!-- Opacidad capa raster sequía -->
+                <div class="space-y-0.5">
+                    <div class="flex justify-between text-[10px]">
+                        <span class="text-slate-400">Opacidad anomalía 6m</span>
+                        <span id="lbl-sequia-opacity" class="font-mono text-rose-300 font-semibold">55%</span>
+                    </div>
+                    <input
 
                 <!-- Opacidad capa raster sequía -->
                 <div class="space-y-0.5">
