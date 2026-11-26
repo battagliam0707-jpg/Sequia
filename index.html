@@ -2020,7 +2020,127 @@
         // =========================================================================
         // 6. PUNTOS CIRCULARES DE CENTRALES + HALO EXCLUSIVO + ESCALA 2X EN GLOBO 3D
         // =========================================================================
-       function buildDamCardHtml(p) {
+       // =========================================================================
+        // 6. PUNTOS CIRCULARES DE CENTRALES + HALO EXCLUSIVO + ESCALA 2X EN GLOBO 3D
+        // =========================================================================
+        function getActiveDamDisplayMode() {
+            const showRepresas = Boolean(document.getElementById('chk-layer-represas-gris')?.checked);
+            const showNiveles = Boolean(document.getElementById('chk-layer-niveles')?.checked);
+            const showLluviasEmb = Boolean(document.getElementById('chk-layer-lluvias-embalses')?.checked);
+            const showSequiaEmb = Boolean(document.getElementById('chk-layer-sequia-presas')?.checked);
+            if (showRepresas) return 'represas';
+            if (showNiveles) return 'niveles';
+            if (showLluviasEmb) return 'lluvias';
+            if (showSequiaEmb) return 'sequia';
+            return 'none';
+        }
+
+        function resolveDamMarkerColor(p, mode = getActiveDamDisplayMode()) {
+            if (mode === 'sequia') return p.color_sequia || getSequiaColor(getDamSequiaScore(p));
+            if (mode === 'lluvias') return p.color_alerta_lluvia;
+            if (mode === 'niveles') return p.color_nivel;
+            return DAM_NEUTRAL_GRAY_COLOR;
+        }
+
+        function buildDamPointsGeoJSON() {
+            const mode = getActiveDamDisplayMode();
+            return {
+                type: 'FeatureCollection',
+                features: dataRepresas.features.map(f => {
+                    const p = f.properties;
+                    return {
+                        type: 'Feature',
+                        properties: {
+                            id: p.id,
+                            nombre: p.nombre,
+                            nombre_corto: p.nombre_corto,
+                            capacidad_mw: p.capacidad_mw,
+                            volumen_pct: p.volumen_pct,
+                            lluvia_24h_mm: p.lluvia_24h_mm,
+                            color: resolveDamMarkerColor(p, mode),
+                            is_selected: p.id === selectedDamId
+                        },
+                        geometry: f.geometry
+                    };
+                })
+            };
+        }
+
+        function applyMapLibreDamScaleForProjection() {
+            if (!map || !mapReady) return;
+            const scale = isGlobeProjection ? 2.0 : 1.0;
+
+            if (map.getLayer('dams-points-circle')) {
+                map.setPaintProperty('dams-points-circle', 'circle-radius', [
+                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
+                    500, 5.5 * scale,
+                    5000, 7.2 * scale,
+                    14000, 9.0 * scale
+                ]);
+                map.setPaintProperty('dams-points-circle', 'circle-stroke-width', isGlobeProjection ? 2.4 : 1.8);
+            }
+
+            if (map.getLayer('dams-selected-halo')) {
+                map.setPaintProperty('dams-selected-halo', 'circle-radius', [
+                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
+                    500, 18.0 * scale,
+                    5000, 21.0 * scale,
+                    14000, 24.0 * scale
+                ]);
+            }
+
+            if (map.getLayer('dams-selected-ring')) {
+                map.setPaintProperty('dams-selected-ring', 'circle-radius', [
+                    'interpolate', ['linear'], ['get', 'capacidad_mw'],
+                    500, 11.5 * scale,
+                    5000, 13.5 * scale,
+                    14000, 15.5 * scale
+                ]);
+                map.setPaintProperty('dams-selected-ring', 'circle-stroke-width', isGlobeProjection ? 3.2 : 2.5);
+            }
+
+            if (map.getLayer('dams-labels-3d')) {
+                map.setLayoutProperty('dams-labels-3d', 'text-offset', isGlobeProjection ? [0, -1.95] : [0, -1.25]);
+            }
+        }
+
+        function updateDamPointsLayer() {
+            if (map && mapReady) {
+                if (map.getSource('dams-points-src')) {
+                    map.getSource('dams-points-src').setData(buildDamPointsGeoJSON());
+                }
+                if (map.getSource('dams-labels-3d-src')) {
+                    map.getSource('dams-labels-3d-src').setData({
+                        type: 'FeatureCollection',
+                        features: dataRepresas.features.map(f => ({
+                            type: 'Feature',
+                            properties: {
+                                id: f.properties.id,
+                                label: f.properties.nombre_corto,
+                                is_selected: f.properties.id === selectedDamId
+                            },
+                            geometry: f.geometry
+                        }))
+                    });
+                }
+                applyMapLibreDamScaleForProjection();
+            }
+            if (fallbackController) {
+                fallbackController.refreshAll();
+            }
+        }
+
+        function setSelectedDam(damId) {
+            selectedDamId = damId || null;
+            if (map && mapReady && map.getLayer('cuenca-activa-fill')) {
+                const filtro = ['==', ['get', 'id'], selectedDamId || ''];
+                map.setFilter('cuenca-activa-fill', filtro);
+                map.setFilter('cuenca-activa-line', filtro);
+            }
+            updateDamPointsLayer();
+            renderAnalyticalTables();
+        }
+        function buildDamCardHtml(p) {
             const rainVal = getDamRainForHorizon(p, selectedForecastHorizon);
             const rainLabel = `Lluvia ${getHorizonShortLabel(selectedForecastHorizon)}`;
             const jenksTag = p.jenks_tag || 'Clasificación Jenks';
