@@ -1228,6 +1228,27 @@
             return dayIdx === 0 ? '24h (D1)' : `D${dayIdx + 1}`;
         }
 
+        function getSequiaColor(score, mode) {
+            if (mode === 'climatico') {
+                if (score >= 85) return '#b91c1c';
+                if (score >= 70) return '#f97316';
+                if (score >= 55) return '#facc15';
+                if (score >= 35) return '#e2e8f0';
+                if (score >= 18) return '#10b981';
+                return '#1d4ed8';
+            }
+            if (score >= 75) return '#b91c1c';
+            if (score >= 55) return '#f97316';
+            if (score >= 35) return '#facc15';
+            if (score >= 20) return '#10b981';
+            return '#1d4ed8';
+        }
+
+        function getDamSequiaScore(p) {
+            return (typeof sequiaRiskMode !== 'undefined' && sequiaRiskMode === 'climatico')
+                ? (p.riesgo_climatico ?? 50)
+                : (p.riesgo_operativo ?? 50);
+        }
         const DAM_OFFICIAL_METADATA = {
             ITAIPU: { fuente: 'ONS Brasil / Itaipú Binacional', fecha: 'Operativo diario', clim: 78.0 },
             BELO_MONTE: { fuente: 'ONS Brasil (SIN)', fecha: 'Operativo diario', clim: 54.0 },
