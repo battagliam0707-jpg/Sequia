@@ -935,114 +935,102 @@
         }
 
         async function syncDamsWithSequiaRasterPixels() {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth || img.width;
-                        canvas.height = img.naturalHeight || img.height;
-                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                        ctx.drawImage(img, 0, 0);
+            try {
+                const resp = await fetch(`sequia_anomalia_6m.png?t=${Date.now()}`);
+                if (!resp.ok) {
+                    console.warn('[SEAS5] No se encontró sequia_anomalia_6m.png:', resp.status);
+                    return;
+                }
+                const blob = await resp.blob();
+                const bmp = await createImageBitmap(blob);
 
-                        const { west, east, north, south } = sequiaRasterBounds;
+                const canvas = document.createElement('canvas');
+                canvas.width = bmp.width;
+                canvas.height = bmp.height;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(bmp, 0, 0);
 
-                        function classifySeas5PixelHSL(r, g, b, a) {
-                            if (a < 25) return null; // Fuera de máscara del raster
-                            const rn = r / 255, gn = g / 255, bn = b / 255;
-                            const max = Math.max(rn, gn, bn);
-                            const min = Math.min(rn, gn, bn);
-                            const l = (max + min) / 2;
-                            const d = max - min;
-                            const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+                const { west, east, north, south } = sequiaRasterBounds;
 
-                            // Gris / Blanco / Neutro (baja saturación -> Normal -4% a +4%)
-                            if (s < 0.18 || (l > 0.82 && s < 0.30)) {
-                                return { score: 45, anom: 0.0 }; // Normal (#e2e8f0)
-                            }
+                function classifySeas5PixelHSL(r, g, b, a) {
+                    if (a < 25) return null; // Fuera de máscara / zona árida transparente
+                    const rn = r / 255, gn = g / 255, bn = b / 255;
+                    const max = Math.max(rn, gn, bn);
+                    const min = Math.min(rn, gn, bn);
+                    const l = (max + min) / 2;
+                    const d = max - min;
+                    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
 
-                            let h = 0;
-                            if (d !== 0) {
-                                if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
-                                else if (max === gn) h = ((bn - rn) / d + 2) * 60;
-                                else h = ((rn - gn) / d + 4) * 60;
-                            }
+                    // Blanco / Gris claro (Normal -4% a +4%)
+                    if (s < 0.18 || (l > 0.80 && s < 0.30)) {
+                        return { score: 45, anom: 0.0 };
+                    }
 
-                            // Rojos oscuros / granates (0°..14° o >= 335°) -> Sequía severa (< -25%)
-                            if (h >= 335 || h <= 14) {
-                                return { score: 95, anom: -28.0 }; // Rojo (#b91c1c)
+                    let h = 0;
+                    if (d !== 0) {
+                        if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+                        else if (max === gn) h = ((bn - rn) / d + 2) * 60;
+                        else h = ((rn - gn) / d + 4) * 60;
+                    }
+
+                    if (h >= 335 || h <= 14) return { score: 95, anom: -28.0 }; // Rojo (< -25%)
+                    if (h > 14 && h <= 38)  return { score: 80, anom: -18.0 }; // Naranja (-25..-12%)
+                    if (h > 38 && h <= 68)  return { score: 65, anom: -8.0 };  // Amarillo (-12..-4%)
+                    if (h > 68 && h <= 175) return { score: 25, anom: 9.0 };   // Verde (+4..+15%)
+                    return { score: 10, anom: 20.0 };                         // Azul (> +15%)
+                }
+
+                dataRepresas.features.forEach(f => {
+                    const p = f.properties;
+                    const u = (p.lon - west) / (east - west);
+                    const v = (north - p.lat) / (north - south);
+                    if (u < 0 || u > 1 || v < 0 || v > 1) return;
+
+                    const cx = Math.min(canvas.width - 1, Math.max(0, Math.round(u * (canvas.width - 1))));
+                    const cy = Math.min(canvas.height - 1, Math.max(0, Math.round(v * (canvas.height - 1))));
+
+                    let rSum = 0, gSum = 0, bSum = 0, aSum = 0, count = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const sx = Math.min(canvas.width - 1, Math.max(0, cx + dx));
+                            const sy = Math.min(canvas.height - 1, Math.max(0, cy + dy));
+                            const pxData = ctx.getImageData(sx, sy, 1, 1).data;
+                            if (pxData[3] >= 25) {
+                                rSum += pxData[0];
+                                gSum += pxData[1];
+                                bSum += pxData[2];
+                                aSum += pxData[3];
+                                count++;
                             }
-                            // Naranjas (15°..38°) -> Déficit moderado (-25% a -12%)
-                            if (h > 14 && h <= 38) {
-                                return { score: 80, anom: -18.0 }; // Naranja (#f97316)
-                            }
-                            // Amarillos (39°..68°) -> Levemente seco (-12% a -4%)
-                            if (h > 38 && h <= 68) {
-                                return { score: 65, anom: -8.0 };  // Amarillo (#facc15)
-                            }
-                            // Verdes / Turquesas (69°..175°) -> Húmedo (+4% a +15%)
-                            if (h > 68 && h <= 175) {
-                                return { score: 25, anom: 9.0 };   // Verde (#10b981)
-                            }
-                            // Azules / Índigos (176°..275°) -> Superávit (> +15%)
-                            return { score: 10, anom: 20.0 };      // Azul (#1d4ed8)
                         }
+                    }
 
-                        dataRepresas.features.forEach(f => {
-                            const p = f.properties;
-                            const u = (p.lon - west) / (east - west);
-                            const v = (north - p.lat) / (north - south);
-                            if (u < 0 || u > 1 || v < 0 || v > 1) return;
+                    let band = null;
+                    if (count > 0) {
+                        band = classifySeas5PixelHSL(
+                            Math.round(rSum / count),
+                            Math.round(gSum / count),
+                            Math.round(bSum / count),
+                            Math.round(aSum / count)
+                        );
+                    } else if (p.lat < -35) {
+                        // Zonas áridas del sur fuera de máscara raster
+                        band = p.volumen_pct < 30
+                            ? { score: 95, anom: -28.0 }
+                            : { score: 80, anom: -18.0 };
+                    }
 
-                            const cx = Math.min(canvas.width - 1, Math.max(0, Math.round(u * (canvas.width - 1))));
-                            const cy = Math.min(canvas.height - 1, Math.max(0, Math.round(v * (canvas.height - 1))));
-
-                            // Muestrea una ventana 3x3 alrededor de la represa para evitar ruido de borde
-                            let rSum = 0, gSum = 0, bSum = 0, aSum = 0, count = 0;
-                            for (let dy = -1; dy <= 1; dy++) {
-                                for (let dx = -1; dx <= 1; dx++) {
-                                    const sx = Math.min(canvas.width - 1, Math.max(0, cx + dx));
-                                    const sy = Math.min(canvas.height - 1, Math.max(0, cy + dy));
-                                    const pxData = ctx.getImageData(sx, sy, 1, 1).data;
-                                    if (pxData[3] >= 25) {
-                                        rSum += pxData[0];
-                                        gSum += pxData[1];
-                                        bSum += pxData[2];
-                                        aSum += pxData[3];
-                                        count++;
-                                    }
-                                }
-                            }
-
-                            let band = null;
-                            if (count > 0) {
-                                band = classifySeas5PixelHSL(
-                                    Math.round(rSum / count),
-                                    Math.round(gSum / count),
-                                    Math.round(bSum / count),
-                                    Math.round(aSum / count)
-                                );
-                            } else if (p.lat < -35) {
-                                // Zonas áridas del sur sin cobertura raster (Patagonia / Comahue)
-                                band = p.volumen_pct < 30
-                                    ? { score: 95, anom: -28.0 }
-                                    : { score: 80, anom: -18.0 };
-                            }
-
-                            if (band) {
-                                p.anomalia_pct = band.anom;
-                                p.riesgo_climatico = band.score;
-                                p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
-                                p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
-                            }
-                        });
-                    } catch (_) {}
-                    resolve();
-                };
-                img.onerror = () => resolve();
-                img.src = `sequia_anomalia_6m.png?t=${Date.now()}`;
-            });
+                    if (band) {
+                        p.anomalia_pct = band.anom;
+                        p.riesgo_climatico = band.score;
+                        p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
+                        p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
+                    }
+                });
+                console.log('[SEAS5] Sincronización de píxeles completada.');
+            } catch (err) {
+                console.warn('[SEAS5] Error leyendo raster:', err);
+            }
         }
 
         function updateSequiaDamLegendScale() {
