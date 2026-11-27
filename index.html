@@ -983,8 +983,9 @@
 
                 // Actualiza la capa visual en MapLibre con el raster corregido
                 const correctedDataUrl = canvas.toDataURL('image/png');
-                const rasterSrc = map.getSource('sequia-anomalia') ||
-                                  Object.values(map.style.sourceCaches || {}).map(c => c._source).find(s => s && s.type === 'image');
+                const rasterSrc = (typeof map !== 'undefined' && map.getSource)
+                    ? (map.getSource('sequia-anomalia') || Object.values(map.style.sourceCaches || {}).map(c => c._source).find(s => s && s.type === 'image'))
+                    : null;
                 if (rasterSrc && typeof rasterSrc.updateImage === 'function') {
                     rasterSrc.updateImage({ url: correctedDataUrl });
                 }
@@ -999,12 +1000,12 @@
 
                 // Clasificador sobre el raster YA corregido
                 const REAL_BANDS = [
-                    { rgb: [186, 28, 28],   score: 95, anom: -28.0 }, // Rojo: Sequía severa (< -25%)
-                    { rgb: [249, 115, 22],  score: 80, anom: -18.0 }, // Naranja: Déficit moderado (-25..-12%)
-                    { rgb: [250, 204, 20],  score: 65, anom: -8.0  }, // Amarillo: Levemente seco (-12..-4%)
-                    { rgb: [226, 232, 241], score: 45, anom: 0.0   }, // Blanco/Gris: Normal (-4..+4%)
-                    { rgb: [16, 186, 129],  score: 25, anom: 9.0   }, // Verde: Húmedo (+4..+15%)
-                    { rgb: [28, 79, 216],   score: 10, anom: 20.0  }  // Azul: Superávit (> +15%)
+                    { rgb: [186, 28, 28],   hex: '#b91c1c', score: 95, anom: -28.0 }, // Rojo: Sequía severa (< -25%)
+                    { rgb: [249, 115, 22],  hex: '#f97316', score: 80, anom: -18.0 }, // Naranja: Déficit moderado (-25..-12%)
+                    { rgb: [250, 204, 20],  hex: '#facc15', score: 65, anom: -8.0  }, // Amarillo: Levemente seco (-12..-4%)
+                    { rgb: [226, 232, 241], hex: '#e2e8f0', score: 45, anom: 0.0   }, // Blanco/Gris: Normal (-4..+4%)
+                    { rgb: [16, 186, 129],  hex: '#10b981', score: 25, anom: 9.0   }, // Verde: Húmedo (+4..+15%)
+                    { rgb: [28, 79, 216],   hex: '#1d4ed8', score: 10, anom: 20.0  }  // Azul: Superávit (> +15%)
                 ];
 
                 function classifyCorrectedPixel(r, g, b, a) {
@@ -1022,6 +1023,16 @@
                         }
                     }
                     return best;
+                }
+
+                // Helper local autocontenido para evitar ReferenceError por orden de carga
+                function colorFromAnom(anom) {
+                    if (anom < -25) return '#b91c1c';
+                    if (anom < -12) return '#f97316';
+                    if (anom < -4)  return '#facc15';
+                    if (anom <= 4)  return '#e2e8f0';
+                    if (anom <= 15) return '#10b981';
+                    return '#1d4ed8';
                 }
 
                 // 3. Sincroniza cada represa con el raster corregido
@@ -1066,12 +1077,26 @@
                         p.anomalia_pct = Number(avgAnom.toFixed(1));
                     }
 
-                    p.riesgo_climatico = Number(computeSequiaScoreForMode(p, 'climatico').toFixed(1));
-                    p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
-                    p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
+                    if (typeof computeSequiaScoreForMode === 'function') {
+                        p.riesgo_climatico = Number(computeSequiaScoreForMode(p, 'climatico').toFixed(1));
+                        p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
+                    } else {
+                        const rClima = Math.min(100, Math.max(0, ((30 - (p.anomalia_pct || 0)) / 60) * 100));
+                        p.riesgo_climatico = Number(rClima.toFixed(1));
+                        p.riesgo_operativo = Number((0.65 * rClima + 0.35 * (100 - (p.nivel_embalse || 70))).toFixed(1));
+                    }
+
+                    p.color_sequia = (typeof getSequiaColor === 'function' && typeof sequiaRiskMode !== 'undefined')
+                        ? getSequiaColor(getDamSequiaScore(p), sequiaRiskMode)
+                        : colorFromAnom(p.anomalia_pct || 0);
                 });
 
-                console.log('[SEAS5 v6] Raster invertido a valores reales y represas sincronizadas 1:1.');
+                // Refresca la fuente GeoJSON en el mapa si ya está cargada
+                if (typeof map !== 'undefined' && map.getSource && map.getSource('represas')) {
+                    map.getSource('represas').setData(dataRepresas);
+                }
+
+                console.log('[SEAS5 v7] Raster invertido a valores reales y represas sincronizadas sin errores.');
             } catch (err) {
                 console.warn('[SEAS5] Error procesando raster:', err);
             }
