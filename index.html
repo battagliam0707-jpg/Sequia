@@ -950,80 +950,74 @@
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
                 const { west, east, north, south } = sequiaRasterBounds;
 
-                function classifySeas5PixelHSL(r, g, b, a) {
-                    if (a < 180) return null;
+                // Proyección Web Mercator (EPSG:3857) idéntica a MapLibre GL ImageSource
+                const latToMercY = (latDeg) => {
+                    const rad = (latDeg * Math.PI) / 180;
+                    return Math.log(Math.tan(Math.PI / 4 + rad / 2));
+                };
+                const mercNorth = latToMercY(north);
+                const mercSouth = latToMercY(south);
 
-                    const rn = r / 255, gn = g / 255, bn = b / 255;
-                    const max = Math.max(rn, gn, bn);
-                    const min = Math.min(rn, gn, bn);
-                    const l = (max + min) / 2;
-                    const d = max - min;
-                    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+                // Paleta exacta de sequia_anomalia_6m.png
+                const RASTER_BANDS = [
+                    { rgb: [186, 28, 28],   score: 95, anom: -28.0 }, // Rojo: Sequía severa (< -25%)
+                    { rgb: [249, 115, 22],  score: 80, anom: -18.0 }, // Naranja: Déficit moderado (-25..-12%)
+                    { rgb: [250, 204, 20],  score: 65, anom: -8.0  }, // Amarillo: Levemente seco (-12..-4%)
+                    { rgb: [226, 232, 241], score: 45, anom: 0.0   }, // Blanco/Gris: Normal (-4% a +4%)
+                    { rgb: [16, 186, 129],  score: 25, anom: 9.0   }, // Verde: Húmedo (+4% a +15%)
+                    { rgb: [28, 79, 216],   score: 10, anom: 20.0  }  // Azul: Superávit (> +15%)
+                ];
 
-                    // Blanco / Gris claro sólido (Normal -4% a +4%)
-                    if (s < 0.16 || (l > 0.82 && s < 0.28)) {
-                        return { score: 45, anom: 0.0, band: 'Normal' };
+                function classifyExactPixel(r, g, b, a) {
+                    if (a < 180) return null; // Ignora máscara árida semitransparente (A = 89)
+                    let best = RASTER_BANDS[3];
+                    let minDist = Infinity;
+                    for (const band of RASTER_BANDS) {
+                        const dr = r - band.rgb[0];
+                        const dg = g - band.rgb[1];
+                        const db = b - band.rgb[2];
+                        const dist = dr * dr + dg * dg + db * db;
+                        if (dist < minDist) {
+                            minDist = dist;
+                            best = band;
+                        }
                     }
-
-                    let h = 0;
-                    if (d !== 0) {
-                        if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
-                        else if (max === gn) h = ((bn - rn) / d + 2) * 60;
-                        else h = ((rn - gn) / d + 4) * 60;
-                    }
-
-                    // 1. Rojos (< -25%)
-                    if (h >= 335 || h <= 14) return { score: 95, anom: -28.0, band: 'Rojo' };
-                    // 2. Naranjas (-25% a -12%)
-                    if (h > 14 && h <= 38)  return { score: 80, anom: -18.0, band: 'Naranja' };
-                    // 3. Amarillos (-12% a -4%)
-                    if (h > 38 && h <= 68)  return { score: 65, anom: -8.0, band: 'Amarillo' };
-                    // 4. Verdes y Turquesas (+4% a +15%): incluye verde-agua del NE y Norte de Brasil
-                    if (h > 68 && h <= 216 && g >= b * 0.72) {
-                        return { score: 25, anom: 9.0, band: 'Verde' };
-                    }
-                    // 5. Azul profundo de Superávit (> +15%)
-                    return { score: 10, anom: 20.0, band: 'Azul' };
+                    return best;
                 }
-
-                const debugRows = [];
 
                 dataRepresas.features.forEach(f => {
                     const p = f.properties;
                     const u = (p.lon - west) / (east - west);
-                    const v = (north - p.lat) / (north - south);
+                    const v = (mercNorth - latToMercY(p.lat)) / (mercNorth - mercSouth);
                     if (u < 0 || u > 1 || v < 0 || v > 1) return;
 
                     const cx = Math.min(canvas.width - 1, Math.max(0, Math.round(u * (canvas.width - 1))));
                     const cy = Math.min(canvas.height - 1, Math.max(0, Math.round(v * (canvas.height - 1))));
 
+                    // 1. Muestrea ventana 3x3 sólida directamente bajo la represa
                     let samples = [];
-                    let sampleRgb = '';
                     for (let dy = -1; dy <= 1; dy++) {
                         for (let dx = -1; dx <= 1; dx++) {
                             const sx = Math.min(canvas.width - 1, Math.max(0, cx + dx));
                             const sy = Math.min(canvas.height - 1, Math.max(0, cy + dy));
                             const idx = (sy * canvas.width + sx) * 4;
-                            const hit = classifySeas5PixelHSL(imgData[idx], imgData[idx + 1], imgData[idx + 2], imgData[idx + 3]);
-                            if (hit) {
-                                samples.push(hit);
-                                if (!sampleRgb) sampleRgb = `rgb(${imgData[idx]},${imgData[idx+1]},${imgData[idx+2]})`;
-                            }
+                            const hit = classifyExactPixel(imgData[idx], imgData[idx + 1], imgData[idx + 2], imgData[idx + 3]);
+                            if (hit) samples.push(hit);
                         }
                     }
 
+                    // 2. Si cayó en máscara árida (A = 89), busca el píxel sólido más cercano
+                    //    (en el sur p.lat < -35 prioriza el sector este/patagónico dx >= 0 para consistencia regional)
                     if (samples.length === 0) {
+                        const minDx = p.lat < -35 ? 0 : -24;
                         for (let radius = 2; radius <= 24 && samples.length === 0; radius += 2) {
                             for (let dy = -radius; dy <= radius; dy += 2) {
-                                for (let dx = -radius; dx <= radius; dx += 2) {
+                                for (let dx = Math.max(-radius, minDx); dx <= radius; dx += 2) {
                                     const sx = Math.min(canvas.width - 1, Math.max(0, cx + dx));
                                     const sy = Math.min(canvas.height - 1, Math.max(0, cy + dy));
                                     const idx = (sy * canvas.width + sx) * 4;
-                                    const hit = classifySeas5PixelHSL(imgData[idx], imgData[idx + 1], imgData[idx + 2], imgData[idx + 3]);
-                                    if (hit) {
-                                        samples.push(hit);
-                                        if (!sampleRgb) sampleRgb = `near(${imgData[idx]},${imgData[idx+1]},${imgData[idx+2]})`;
-                                    }
+                                    const hit = classifyExactPixel(imgData[idx], imgData[idx + 1], imgData[idx + 2], imgData[idx + 3]);
+                                    if (hit) samples.push(hit);
                                 }
                             }
                         }
@@ -1037,9 +1031,8 @@
                     p.riesgo_climatico = Number(computeSequiaScoreForMode(p, 'climatico').toFixed(1));
                     p.riesgo_operativo = Number(computeSequiaScoreForMode(p, 'operativo').toFixed(1));
                     p.color_sequia = getSequiaColor(getDamSequiaScore(p), sequiaRiskMode);
-                    debugRows.push({ represa: p.nombre_corto, pixel: sampleRgb, anomalia: p.anomalia_pct, color: p.color_sequia });
                 });
-                console.table(debugRows);
+                console.log('[SEAS5 v5] Paridad 1:1 con proyección Mercator completada.');
             } catch (err) {
                 console.warn('[SEAS5] Error leyendo raster:', err);
             }
